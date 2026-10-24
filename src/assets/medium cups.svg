@@ -1,0 +1,48 @@
+<svg width="103" height="157" viewBox="33 54 103 157" fill="none" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g clip-path="url(#clip_cup_m_stack)">
+<g filter="url(#filter0_i_49_3)">
+<path d="M50.0216 60.1773C50.4386 56.6541 53.4253 54 56.9731 54H112.977C116.546 54 119.544 56.685 119.935 60.2323L132.143 170.88C132.6 175.025 129.355 178.648 125.185 178.648H43.8773C39.6852 178.648 36.4331 174.988 36.9259 170.825L50.0216 60.1773Z" fill="#F4EEE2"/>
+</g>
+<g filter="url(#filter1_i_49_3)">
+<path d="M41.2313 90.9344H128V143.713H41.2313V90.9344Z" fill="#8CC17E"/>
+</g>
+<path d="M39 92.4344H130M39 142.213H130" stroke="#5F5F5F" stroke-width="3"/>
+<use xlink:href="#stroke0_49_3" fill="white"/>
+<mask id="stroke1_49_3" maskUnits="userSpaceOnUse" x="68" y="103.18" width="33" height="29" fill="black">
+<rect fill="white" x="68" y="103.18" width="33" height="29"/>
+<use xlink:href="#stroke0_49_3"/>
+</mask>
+<path d="M98.8286 104.908V130.18H92.6726V115.024L87.0206 130.18H82.0526L76.3646 114.988V130.18H70.2086V104.908H77.4806L84.5726 122.404L91.5926 104.908H98.8286Z" stroke-width="3" stroke="#3E2918" mask="url(#stroke1_49_3)"/>
+<path d="M56.7158 98.8001C56.8477 97.7034 56.0694 96.68 54.9774 96.5143C53.8853 96.3486 52.893 97.1033 52.761 98.1999L54.7384 98.5L56.7158 98.8001ZM48.239 135.778C48.107 136.874 48.8853 137.898 49.9774 138.064C51.0694 138.229 52.0617 137.475 52.1937 136.378L50.2163 136.078L48.239 135.778ZM54.7384 98.5L52.761 98.1999L48.239 135.778L50.2163 136.078L52.1937 136.378L56.7158 98.8001L54.7384 98.5Z" fill="white" fill-opacity="0.43"/>
+<path d="M53.862 61H101V63H53.5973L53.862 61Z" fill="#D9CFBC"/>
+</g>
+<path d="M56.9727 56H112.978C115.527 56.0002 117.668 57.9184 117.947 60.4521L130.155 171.1C130.482 174.06 128.164 176.647 125.186 176.647H43.877C40.8828 176.647 38.5602 174.033 38.9121 171.06L52.0078 60.4121C52.2964 57.9745 54.3073 56.1196 56.7363 56.0059L56.9727 56Z" stroke="#5F5F5F" stroke-width="4"/>
+<path d="M40 173H129C131.761 173 134 175.239 134 178V186C134 188.761 131.761 191 129 191H40C37.2386 191 35 188.761 35 186V178C35 175.239 37.2386 173 40 173Z" fill="#EDE4D3" stroke-width="4" stroke="#5F5F5F"/>
+<rect x="108" y="175" width="24" height="14" rx="3" fill="#D9CFBC"/>
+<path d="M40 191H129C131.761 191 134 193.239 134 196V204C134 206.761 131.761 209 129 209H40C37.2386 209 35 206.761 35 204V196C35 193.239 37.2386 191 40 191Z" fill="#EDE4D3" stroke-width="4" stroke="#5F5F5F"/>
+<rect x="108" y="193" width="24" height="14" rx="3" fill="#D9CFBC"/>
+<defs>
+<clipPath id="clip_cup_m_stack">
+<path d="M56.9727 56H112.978C115.527 56.0002 117.668 57.9184 117.947 60.4521L130.155 171.1C130.482 174.06 128.164 176.647 125.186 176.647H43.877C40.8828 176.647 38.5602 174.033 38.9121 171.06L52.0078 60.4121C52.2964 57.9745 54.3073 56.1196 56.7363 56.0059L56.9727 56Z"/>
+</clipPath>
+<filter id="filter0_i_49_3" x="36.8765" y="54" width="95.3096" height="124.648" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset dx="-20"/>
+<feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/>
+<feColorMatrix type="matrix" values="0 0 0 0 0.85098 0 0 0 0 0.811765 0 0 0 0 0.737255 0 0 0 1 0"/>
+<feBlend mode="normal" in2="shape" result="effect1_innerShadow_49_3"/>
+</filter>
+<filter id="filter1_i_49_3" x="41.2313" y="90.9344" width="86.7687" height="52.7787" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset dx="-19"/>
+<feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/>
+<feColorMatrix type="matrix" values="0 0 0 0 0.435294 0 0 0 0 0.647059 0 0 0 0 0.372549 0 0 0 1 0"/>
+<feBlend mode="normal" in2="shape" result="effect1_innerShadow_49_3"/>
+</filter>
+<path id="stroke0_49_3" d="M98.8286 104.908V130.18H92.6726V115.024L87.0206 130.18H82.0526L76.3646 114.988V130.18H70.2086V104.908H77.4806L84.5726 122.404L91.5926 104.908H98.8286Z"/>
+</defs>
+</svg>

@@ -1,13 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-const gamePausedStyles = `
-@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Poppins:wght@600;700;800&display=swap');
+const VOLUME_STORAGE_KEY = 'madcoffee_volume';
+const MUTED_STORAGE_KEY = 'madcoffee_muted';
 
-/* ==========================================================================
-   Game Paused Modal Overlay & Board (1440 x 1024 Screen Proportions)
-   Outer Frame: 696 x 594 centered on screen
-   ========================================================================== */
+const gamePausedStyles = `
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Lilita+One&family=Poppins:wght@600;700;800&display=swap');
 
 .pause-modal-backdrop {
   position: absolute;
@@ -17,6 +15,8 @@ const gamePausedStyles = `
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
   animation: pauseBackdropFadeIn 0.18s ease-out;
 }
 
@@ -40,133 +40,106 @@ const gamePausedStyles = `
   }
 }
 
-/* Outer Wooden Frame (#B87B47 with #361E10 border & top lighting highlight) */
 .pause-modal-frame {
   box-sizing: border-box;
-  width: calc(696 / 1440 * 100%);
-  aspect-ratio: 696 / 594;
+  width: 100%;
+  max-width: 440px;
   background: #B87B47;
   border: 4px solid #361E10;
-  border-radius: 6px;
-  box-shadow: inset 0px 5px 0px rgba(255, 255, 255, 0.25);
-  padding: 2.35%;
+  border-radius: 12px;
+  box-shadow:
+    inset 0px 4px 0px rgba(255, 255, 255, 0.25),
+    0 18px 40px rgba(0, 0, 0, 0.45);
+  padding: 14px;
   display: flex;
   animation: pauseBoardPopIn 0.2s cubic-bezier(0.34, 1.35, 0.64, 1);
   user-select: none;
 }
 
-/* Inner Cream Panel (#FFF4DF with #361E10 border & right inner shadow strip) */
 .pause-modal-board {
   box-sizing: border-box;
   width: 100%;
-  height: 100%;
   background: #FFF4DF;
-  border: 4px solid #361E10;
-  border-radius: 2px;
-  box-shadow: inset -14px 0px 0px rgba(0, 0, 0, 0.2);
+  border: 3px solid #361E10;
+  border-radius: 4px;
+  box-shadow: inset -10px 0px 0px rgba(0, 0, 0, 0.16);
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  padding: 7.5% 7% 8%;
+  gap: 22px;
+  padding: 30px 28px 32px;
 }
 
-/* Title: GAME PAUSED */
 .pause-modal-title {
   margin: 0;
-  font-family: 'Fredoka', 'Poppins', sans-serif;
+  font-family: 'Lilita One', 'Fredoka', 'Poppins', sans-serif;
   font-weight: 700;
-  font-size: clamp(20px, 3.1vw, 44px);
+  font-size: 32px;
   letter-spacing: 0.02em;
   color: #361E10;
   text-align: center;
   line-height: 1.1;
 }
 
-/* Volume Control Row */
-.pause-volume-row {
-  width: 72%;
+.pause-volume-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 310px;
+  aspect-ratio: 386 / 54;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 5%;
-}
-
-.pause-speaker-btn {
-  background: transparent;
-  border: none;
-  padding: 0;
-  margin: 0;
-  width: 14%;
-  aspect-ratio: 1 / 1;
+  user-select: none;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  outline: none;
-  flex-shrink: 0;
-  transition: transform 0.12s ease;
 }
 
-.pause-speaker-btn:hover {
-  transform: scale(1.08);
-}
-
-.pause-speaker-btn:active {
-  transform: scale(0.94);
-}
-
-.pause-speaker-btn svg {
+.pause-volume-bg {
   width: 100%;
   height: 100%;
   display: block;
 }
 
-.pause-volume-track {
-  position: relative;
-  flex: 1;
-  height: clamp(14px, 1.7vw, 22px);
-  background: #361E10;
-  border: 4px solid #361E10;
-  border-radius: 999px;
-  cursor: pointer;
-  overflow: hidden;
-  box-sizing: border-box;
-}
-
-.pause-volume-fill {
-  height: 100%;
-  background: #B87B47;
-  border-radius: 999px;
-  transition: width 0.12s ease;
-}
-
-.pause-volume-input {
+.pause-volume-range-overlay {
   position: absolute;
-  inset: 0;
-  width: 100%;
+  left: calc(66 / 386 * 100%);
+  top: 0;
+  width: calc(320 / 386 * 100%);
   height: 100%;
   opacity: 0;
   cursor: pointer;
   margin: 0;
+  z-index: 5;
 }
 
-/* Middle Action Tiles Row (Home & Restart) */
+.pause-speaker-toggle-zone {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: calc(60 / 386 * 100%);
+  height: 100%;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  z-index: 5;
+  outline: none;
+}
+
 .pause-actions-row {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10%;
+  gap: 28px;
   width: 100%;
 }
 
 .pause-icon-tile {
   box-sizing: border-box;
-  width: 21%;
-  aspect-ratio: 89 / 84;
+  width: 68px;
+  height: 64px;
   background: #FFF4DF;
   border: none;
-  border-radius: 15px;
+  border-radius: 14px;
   box-shadow:
     0px 4px 4px rgba(185, 124, 73, 0.27),
     inset 0px 4px 4px rgba(185, 124, 73, 0.08);
@@ -175,19 +148,14 @@ const gamePausedStyles = `
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2.4%;
+  padding: 10px;
   transition: transform 0.14s ease, filter 0.14s ease, box-shadow 0.14s ease;
 }
 
 .pause-icon-tile svg {
-  width: 72%;
-  height: 72%;
+  width: 100%;
+  height: 100%;
   display: block;
-}
-
-.pause-icon-tile svg.pause-retry-icon {
-  width: 78%;
-  height: 78%;
 }
 
 .pause-icon-tile:hover {
@@ -203,14 +171,14 @@ const gamePausedStyles = `
   filter: brightness(0.96);
 }
 
-/* Bottom CONTINUE Button */
 .pause-continue-btn {
   box-sizing: border-box;
-  width: 76%;
-  aspect-ratio: 420 / 76;
+  width: 100%;
+  max-width: 280px;
+  height: 46px;
   background: #B87B47;
-  border: 3.5px solid #361E10;
-  border-radius: 12px;
+  border: 3px solid #361E10;
+  border-radius: 10px;
   cursor: pointer;
   outline: none;
   display: flex;
@@ -218,7 +186,7 @@ const gamePausedStyles = `
   justify-content: center;
   font-family: 'Fredoka', 'Poppins', sans-serif;
   font-weight: 700;
-  font-size: clamp(16px, 2.25vw, 31px);
+  font-size: 18px;
   letter-spacing: 0.03em;
   color: #FFF4DF;
   transition: transform 0.14s ease, filter 0.14s ease;
@@ -234,27 +202,21 @@ const gamePausedStyles = `
   filter: brightness(0.95);
 }
 
-/* ==========================================================================
-   Leave Confirmation View (Medium Dialog Size)
-   ========================================================================== */
-
 .pause-modal-frame.is-confirm {
-  width: calc(580 / 1440 * 100%);
-  aspect-ratio: 580 / 420;
-  padding: 2.1%;
+  max-width: 410px;
 }
 
 .pause-confirm-board {
   justify-content: center;
-  gap: 13%;
-  padding: 8.5% 7.5%;
+  gap: 24px;
+  padding: 32px 26px;
 }
 
 .pause-confirm-text-group {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   text-align: center;
 }
 
@@ -262,7 +224,7 @@ const gamePausedStyles = `
   margin: 0;
   font-family: 'Fredoka', 'Poppins', sans-serif;
   font-weight: 700;
-  font-size: clamp(16px, 2.3vw, 32px);
+  font-size: 22px;
   letter-spacing: 0.01em;
   color: #361E10;
   line-height: 1.2;
@@ -272,7 +234,7 @@ const gamePausedStyles = `
   margin: 0;
   font-family: 'Fredoka', 'Poppins', sans-serif;
   font-weight: 600;
-  font-size: clamp(13px, 1.6vw, 22px);
+  font-size: 15px;
   color: #7A4B2A;
   line-height: 1.25;
 }
@@ -281,16 +243,17 @@ const gamePausedStyles = `
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8%;
-  width: 80%;
+  gap: 20px;
+  width: 100%;
+  max-width: 280px;
 }
 
 .pause-confirm-btn {
   box-sizing: border-box;
   flex: 1;
-  aspect-ratio: 170 / 60;
-  border: 3.5px solid #361E10;
-  border-radius: 11px;
+  height: 42px;
+  border: 2.5px solid #361E10;
+  border-radius: 10px;
   cursor: pointer;
   outline: none;
   display: flex;
@@ -298,7 +261,7 @@ const gamePausedStyles = `
   justify-content: center;
   font-family: 'Fredoka', 'Poppins', sans-serif;
   font-weight: 700;
-  font-size: clamp(14px, 1.85vw, 25px);
+  font-size: 16px;
   letter-spacing: 0.03em;
   transition: transform 0.14s ease, filter 0.14s ease;
 }
@@ -309,7 +272,7 @@ const gamePausedStyles = `
 }
 
 .pause-confirm-btn.is-no {
-  background: #EAD4B4;
+  background: #FFF4DF;
   color: #361E10;
 }
 
@@ -326,13 +289,48 @@ const gamePausedStyles = `
 
 function GamePaused({ isOpen, onContinue, onRestart }) {
   const navigate = useNavigate();
-  const [volume, setVolume] = useState(62);
-  const [isMuted, setIsMuted] = useState(false);
+  const [volume, setVolume] = useState(() => {
+    const saved = localStorage.getItem(VOLUME_STORAGE_KEY);
+    return saved !== null ? Number(saved) : 60;
+  });
+  const [isMuted, setIsMuted] = useState(() => {
+    return localStorage.getItem(MUTED_STORAGE_KEY) === 'true';
+  });
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
 
   if (!isOpen) return null;
 
   const displayedVolume = isMuted ? 0 : volume;
+  const currentFillWidth = (displayedVolume / 100) * 306;
+
+  const updateVolume = (nextVal) => {
+    setVolume(nextVal);
+    localStorage.setItem(VOLUME_STORAGE_KEY, String(nextVal));
+    if (nextVal > 0 && isMuted) {
+      setIsMuted(false);
+      localStorage.setItem(MUTED_STORAGE_KEY, 'false');
+    }
+  };
+
+  const toggleMute = () => {
+    setIsMuted((prev) => {
+      const next = !prev;
+      localStorage.setItem(MUTED_STORAGE_KEY, String(next));
+      return next;
+    });
+  };
+
+  const handleTrackClick = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const trackStart = (66 / 386) * rect.width;
+    const trackWidth = (320 / 386) * rect.width;
+    if (clickX >= trackStart) {
+      const rawPct = (clickX - trackStart) / trackWidth;
+      const nextVal = Math.max(0, Math.min(100, Math.round(rawPct * 100)));
+      updateVolume(nextVal);
+    }
+  };
 
   const handleCloseModal = () => {
     setShowLeaveConfirm(false);
@@ -363,8 +361,8 @@ function GamePaused({ isOpen, onContinue, onRestart }) {
         aria-labelledby="pause-modal-title"
       >
         <div
-          key={showLeaveConfirm ? "confirm-leave" : "pause-menu"}
-          className={showLeaveConfirm ? "pause-modal-frame is-confirm" : "pause-modal-frame"}
+          key={showLeaveConfirm ? 'confirm-leave' : 'pause-menu'}
+          className={showLeaveConfirm ? 'pause-modal-frame is-confirm' : 'pause-modal-frame'}
           onClick={(e) => e.stopPropagation()}
         >
           {!showLeaveConfirm ? (
@@ -373,65 +371,76 @@ function GamePaused({ isOpen, onContinue, onRestart }) {
                 GAME PAUSED
               </h2>
 
-              {/* Volume Control Row */}
-              <div className="pause-volume-row">
-                <button
-                  type="button"
-                  className="pause-speaker-btn"
-                  onClick={() => setIsMuted((prev) => !prev)}
-                  aria-label={isMuted ? "Unmute Audio" : "Mute Audio"}
-                  title={isMuted ? "Unmute" : "Mute"}
-                >
-                  <svg viewBox="0 0 40 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    {/* Speaker Cone */}
+              <div
+                className="pause-volume-wrapper"
+                onClick={handleTrackClick}
+              >
+                <svg viewBox="0 0 386 54" className="pause-volume-bg" xmlns="http://www.w3.org/2000/svg">
+                  <g transform="translate(30, 29.5) scale(0.76) translate(-26, -27)">
                     <path
-                      d="M3 13.5C3 12.1 4.1 11 5.5 11H11.5L19.8 4.4C21.4 3.1 23.8 4.3 23.8 6.4V29.6C23.8 31.7 21.4 32.9 19.8 31.6L11.5 25H5.5C4.1 25 3 23.9 3 22.5V13.5Z"
+                      d="M27.7352 6.99555L13.7555 17.6972H7.1781C5.69979 17.6972 4.5 18.897 4.5 20.3753V33.6051C4.5 35.0834 5.69979 36.2832 7.1781 36.2832H13.7555L27.7352 46.9849C28.5707 47.6276 29.7812 47.0278 29.7812 45.9779V8.02393C29.7812 6.96341 28.5707 6.37422 27.7352 7.01697V6.99555Z"
                       fill="#361E10"
                     />
-                    {/* Sound Waves */}
-                    {!isMuted && (
+                    {displayedVolume > 0 ? (
                       <>
                         <path
-                          d="M28.5 12.5C30.8 15.5 30.8 20.5 28.5 23.5"
-                          stroke="#361E10"
-                          strokeWidth="2.8"
-                          strokeLinecap="round"
+                          d="M40.1507 26.8558C40.1507 30.6909 37.7083 33.9474 34.291 35.1579V18.5537C37.7083 19.7642 40.1507 23.0315 40.1507 26.8665V26.8558Z"
+                          fill="#361E10"
                         />
-                        <path
-                          d="M33 8.5C36.8 13.8 36.8 22.2 33 27.5"
-                          stroke="#361E10"
-                          strokeWidth="2.8"
-                          strokeLinecap="round"
-                        />
+                        {displayedVolume > 35 && (
+                          <path
+                            d="M35.4158 40.0108C34.7302 40.3108 34.2803 40.9964 34.2803 41.7355C34.2803 42.3783 34.6016 42.9675 35.1373 43.3103C35.4479 43.5138 35.8014 43.6209 36.1657 43.6209C36.4228 43.6209 36.6799 43.5674 36.9262 43.4602C43.5144 40.5465 47.7779 34.0226 47.7779 26.8346C47.7779 19.6466 43.5144 13.1228 36.9262 10.209C36.3478 9.95188 35.6729 10.0054 35.148 10.3482C34.6124 10.7017 34.291 11.2909 34.291 11.9337C34.291 12.6728 34.7302 13.3477 35.4265 13.6584C40.6434 15.9722 44.0178 21.1463 44.0178 26.8346C44.0178 32.5229 40.6434 37.697 35.4265 40.0108H35.4158Z"
+                            fill="#361E10"
+                          />
+                        )}
                       </>
+                    ) : (
+                      <path
+                        d="M35 21L45 31M45 21L35 31"
+                        stroke="#361E10"
+                        strokeWidth="3.5"
+                        strokeLinecap="round"
+                      />
                     )}
-                  </svg>
-                </button>
+                  </g>
+                  <rect x="66" y="19" width="320" height="21" rx="10.5" fill="#361E10" />
+                  {displayedVolume > 0 && (
+                    <rect
+                      x="73"
+                      y="25"
+                      width={currentFillWidth}
+                      height="9"
+                      rx="4.5"
+                      fill="#B97C49"
+                    />
+                  )}
+                </svg>
 
-                <div className="pause-volume-track">
-                  <div
-                    className="pause-volume-fill"
-                    style={{ width: `${displayedVolume}%` }}
-                  />
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={displayedVolume}
-                    onChange={(e) => {
-                      const nextVolume = Number(e.target.value);
-                      setVolume(nextVolume);
-                      if (nextVolume > 0 && isMuted) {
-                        setIsMuted(false);
-                      }
-                    }}
-                    className="pause-volume-input"
-                    aria-label="Volume"
-                  />
-                </div>
+                <button
+                  type="button"
+                  className="pause-speaker-toggle-zone"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleMute();
+                  }}
+                  aria-label={isMuted ? 'Unmute Audio' : 'Mute Audio'}
+                  title={isMuted ? 'Unmute' : 'Mute'}
+                />
+
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={displayedVolume}
+                  onChange={(e) => {
+                    const nextVolume = Number(e.target.value);
+                    updateVolume(nextVolume);
+                  }}
+                  className="pause-volume-range-overlay"
+                  aria-label="Volume"
+                />
               </div>
 
-              {/* Home & Restart Buttons */}
               <div className="pause-actions-row">
                 <button
                   type="button"
@@ -475,7 +484,6 @@ function GamePaused({ isOpen, onContinue, onRestart }) {
                 </button>
               </div>
 
-              {/* Continue Button */}
               <button
                 type="button"
                 className="pause-continue-btn"

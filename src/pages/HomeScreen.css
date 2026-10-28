@@ -1,4 +1,3 @@
-/* Screen Wrapper - Brown Page Background */
 .home-container {
   display: flex;
   justify-content: center;
@@ -11,12 +10,9 @@
   user-select: none;
 }
 
-/* Game Screen Frame - Not Full Screen with Prominent Border */
 .game-screen {
   position: relative;
-  width: 100%;
-  max-width: min(1200px, 92vw);
-  max-height: 90vh;
+  width: min(1200px, 92vw, calc(90vh * 1440 / 1024));
   aspect-ratio: 1440 / 1024;
   background-image: url('../assets/home_user.svg');
   background-size: 100% 100%;

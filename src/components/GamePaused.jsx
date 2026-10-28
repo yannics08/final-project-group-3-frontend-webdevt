@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import volumeSvg from '../assets/volume.svg';
+import noVolumeSvg from '../assets/no volume.svg';
 
 const VOLUME_STORAGE_KEY = 'madcoffee_volume';
 const MUTED_STORAGE_KEY = 'madcoffee_muted';
@@ -376,43 +378,23 @@ function GamePaused({ isOpen, onContinue, onRestart }) {
                 onClick={handleTrackClick}
               >
                 <svg viewBox="0 0 386 54" className="pause-volume-bg" xmlns="http://www.w3.org/2000/svg">
-                  <g transform="translate(30, 29.5) scale(0.76) translate(-26, -27)">
-                    <path
-                      d="M27.7352 6.99555L13.7555 17.6972H7.1781C5.69979 17.6972 4.5 18.897 4.5 20.3753V33.6051C4.5 35.0834 5.69979 36.2832 7.1781 36.2832H13.7555L27.7352 46.9849C28.5707 47.6276 29.7812 47.0278 29.7812 45.9779V8.02393C29.7812 6.96341 28.5707 6.37422 27.7352 7.01697V6.99555Z"
-                      fill="#361E10"
-                    />
-                    {displayedVolume > 0 ? (
-                      <>
-                        <path
-                          d="M40.1507 26.8558C40.1507 30.6909 37.7083 33.9474 34.291 35.1579V18.5537C37.7083 19.7642 40.1507 23.0315 40.1507 26.8665V26.8558Z"
-                          fill="#361E10"
-                        />
-                        {displayedVolume > 35 && (
-                          <path
-                            d="M35.4158 40.0108C34.7302 40.3108 34.2803 40.9964 34.2803 41.7355C34.2803 42.3783 34.6016 42.9675 35.1373 43.3103C35.4479 43.5138 35.8014 43.6209 36.1657 43.6209C36.4228 43.6209 36.6799 43.5674 36.9262 43.4602C43.5144 40.5465 47.7779 34.0226 47.7779 26.8346C47.7779 19.6466 43.5144 13.1228 36.9262 10.209C36.3478 9.95188 35.6729 10.0054 35.148 10.3482C34.6124 10.7017 34.291 11.2909 34.291 11.9337C34.291 12.6728 34.7302 13.3477 35.4265 13.6584C40.6434 15.9722 44.0178 21.1463 44.0178 26.8346C44.0178 32.5229 40.6434 37.697 35.4265 40.0108H35.4158Z"
-                            fill="#361E10"
-                          />
-                        )}
-                      </>
-                    ) : (
-                      <path
-                        d="M35 21L45 31M45 21L35 31"
-                        stroke="#361E10"
-                        strokeWidth="3.5"
-                        strokeLinecap="round"
+                  {displayedVolume > 0 ? (
+                    <>
+                      <image href={volumeSvg} x="0" y="0" width="386" height="54" />
+                      <rect
+                        x="73"
+                        y="25"
+                        width={currentFillWidth}
+                        height="9"
+                        rx="4.5"
+                        fill="#B97C49"
                       />
-                    )}
-                  </g>
-                  <rect x="66" y="19" width="320" height="21" rx="10.5" fill="#361E10" />
-                  {displayedVolume > 0 && (
-                    <rect
-                      x="73"
-                      y="25"
-                      width={currentFillWidth}
-                      height="9"
-                      rx="4.5"
-                      fill="#B97C49"
-                    />
+                    </>
+                  ) : (
+                    <>
+                      <image href={noVolumeSvg} x="13" y="12.5" width="34" height="34" />
+                      <rect x="66" y="19" width="320" height="21" rx="10.5" fill="#361E10" />
+                    </>
                   )}
                 </svg>
 

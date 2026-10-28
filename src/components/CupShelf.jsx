@@ -4,11 +4,6 @@ import Teacup from './Teacup';
 const cupShelfStyles = `
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@700&display=swap');
 
-/* ==========================================================================
-   Under-Counter Cup Shelf Styles (1440 x 1024 Game Screen Coordinates)
-   Scaled up to utilize the shelf space with tighter gaps between cups
-   ========================================================================== */
-
 .cup-shelf {
   position: absolute;
   inset: 0;
@@ -20,7 +15,7 @@ const cupShelfStyles = `
 .cup-stack-btn,
 .teacup-btn {
   position: absolute;
-  bottom: calc((1024 - 946) / 1024 * 100%);
+  bottom: calc((1024 - 948) / 1024 * 100%);
   padding: 0;
   margin: 0;
   background: transparent;
@@ -56,28 +51,24 @@ const cupShelfStyles = `
   filter: brightness(0.96);
 }
 
-/* 1. Small Cup Stack ("S") - scaled up to 130px wide */
 .cup-stack-s {
   left: calc(716 / 1440 * 100%);
   width: calc(130 / 1440 * 100%);
   aspect-ratio: 103 / 141;
 }
 
-/* 2. Medium Cup Stack ("M") - scaled up to 130px wide */
 .cup-stack-m {
   left: calc(872 / 1440 * 100%);
   width: calc(130 / 1440 * 100%);
   aspect-ratio: 103 / 157;
 }
 
-/* 3. Large Cup Stack ("L") - scaled up to 130px wide (fills vertical shelf height) */
 .cup-stack-l {
   left: calc(1028 / 1440 * 100%);
   width: calc(130 / 1440 * 100%);
   aspect-ratio: 103 / 174;
 }
 
-/* 4. Teacup on Saucer - scaled up to 232px wide */
 .teacup-btn {
   left: calc(1182 / 1440 * 100%);
   width: calc(232 / 1440 * 100%);

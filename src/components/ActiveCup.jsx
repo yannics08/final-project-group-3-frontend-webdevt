@@ -23,15 +23,10 @@ const ACTIVE_CUP_ASSETS = {
 };
 
 const activeCupStyles = `
-/* ==========================================================================
-   Active Cup Placed Under the Coffee Machine Nozzle
-   Nozzle center on the 1440 x 1024 screen is x = 1039px, tray is y = 576px
-   ========================================================================== */
-
 .active-cup-slot {
   position: absolute;
   left: calc(1003 / 1440 * 100%);
-  bottom: calc((1024 - 578) / 1024 * 100%);
+  bottom: calc((1024 - 584) / 1024 * 100%);
   transform: translateX(-50%);
   z-index: 25;
   pointer-events: none;
@@ -51,7 +46,6 @@ const activeCupStyles = `
   }
 }
 
-/* Relative to .gameplay-screen width via percentage on the slot */
 .active-cup-slot.is-paper-cup {
   width: calc(112 / 1440 * 100%);
 }
@@ -71,7 +65,6 @@ const activeCupStyles = `
 .active-cup-slot.is-teacup {
   width: calc(210 / 1440 * 100%);
   aspect-ratio: 201 / 107;
-  /* Shift slightly right so the teacup bowl (excluding right handle) centers under nozzle */
   left: calc(1014 / 1440 * 100%);
 }
 

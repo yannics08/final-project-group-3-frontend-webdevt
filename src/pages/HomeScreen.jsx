@@ -1,20 +1,37 @@
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import Settings from '../components/Settings';
-import StartButton from '../components/StartButton';
+import MenuBoard from '../components/MenuBoard';
+import AuthModal from '../components/AuthModal';
 import './HomeScreen.css';
 
 function HomeScreen() {
-  const navigate = useNavigate();
+  const [authMode, setAuthMode] = useState(null);
 
-  function handleStart() {
-    navigate('/game');
+  function handleLogin() {
+    setAuthMode('login');
+  }
+
+  function handleSignup() {
+    setAuthMode('signup');
+  }
+
+  function handleAuthSuccess() {
+    setAuthMode(null);
   }
 
   return (
     <div className="home-container">
       <main className="game-screen" aria-label="Mad Coffee Game Screen">
         <Settings />
-        <StartButton day={2} onClick={handleStart} />
+        <MenuBoard onLogin={handleLogin} onSignup={handleSignup} />
+        {authMode && (
+          <AuthModal
+            mode={authMode}
+            onClose={() => setAuthMode(null)}
+            onSwitchMode={(mode) => setAuthMode(mode)}
+            onSuccess={handleAuthSuccess}
+          />
+        )}
       </main>
     </div>
   );

@@ -577,7 +577,8 @@ const settingsStyles = `
 }
 `;
 
-function Settings({ user, onUpdateUser, onLogout, onClick }) {
+function Settings({ user, onUpdateUser, onLogout, onOpenLeaderboard, onClick }) {
+  const isAdmin = Boolean(user && (user.isAdmin || user.username?.toLowerCase() === 'admin'));
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
@@ -681,11 +682,13 @@ function Settings({ user, onUpdateUser, onLogout, onClick }) {
     try {
       const rawUsers = localStorage.getItem(USERS_STORAGE_KEY);
       const users = rawUsers ? JSON.parse(rawUsers) : [];
-      const duplicate = users.some(
-        (u) =>
-          u.username.toLowerCase() === trimmed.toLowerCase() &&
-          u.username.toLowerCase() !== (user?.username || '').toLowerCase()
-      );
+      const duplicate =
+        trimmed.toLowerCase() === 'admin' ||
+        users.some(
+          (u) =>
+            u.username.toLowerCase() === trimmed.toLowerCase() &&
+            u.username.toLowerCase() !== (user?.username || '').toLowerCase()
+        );
       if (duplicate) {
         setEditError('Username is already taken.');
         return;
@@ -693,12 +696,12 @@ function Settings({ user, onUpdateUser, onLogout, onClick }) {
 
       const updatedUsers = users.map((u) =>
         u.username.toLowerCase() === (user?.username || '').toLowerCase()
-          ? { ...u, username: trimmed }
+          ? { ...u, username: trimmed, nameResetPending: false }
           : u
       );
       localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(updatedUsers));
 
-      const updatedUser = { ...user, username: trimmed };
+      const updatedUser = { ...user, username: trimmed, nameResetPending: false };
       localStorage.setItem(CURRENT_USER_STORAGE_KEY, JSON.stringify(updatedUser));
 
       if (onUpdateUser) {
@@ -729,7 +732,7 @@ function Settings({ user, onUpdateUser, onLogout, onClick }) {
     <>
       <style>{settingsStyles}</style>
 
-      {!user ? (
+      {!user || isAdmin ? (
         <button
           type="button"
           className="ribbon-settings-btn"
@@ -799,6 +802,12 @@ function Settings({ user, onUpdateUser, onLogout, onClick }) {
             <button
               type="button"
               className="menu-action-tile"
+              onClick={() => {
+                setIsMenuOpen(false);
+                if (onOpenLeaderboard) {
+                  onOpenLeaderboard();
+                }
+              }}
               aria-label="Leaderboard"
               title="Leaderboard"
             >
@@ -883,67 +892,67 @@ function Settings({ user, onUpdateUser, onLogout, onClick }) {
                 />
               </div>
 
-              {user && (
-                <>
-                  <div className="settings-user-section">
-                    <span className="settings-user-label">Username</span>
-                    {!isEditingUsername ? (
-                      <div className="settings-username-display-row">
-                        <div className="settings-username-pill">{user.username}</div>
+              {user && !isAdmin && (
+                <div className="settings-user-section">
+                  <span className="settings-user-label">Username</span>
+                  {!isEditingUsername ? (
+                    <div className="settings-username-display-row">
+                      <div className="settings-username-pill">{user.username}</div>
+                      <button
+                        type="button"
+                        className="settings-edit-btn"
+                        onClick={handleStartEditUsername}
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <input
+                        type="text"
+                        className="settings-username-input"
+                        value={draftUsername}
+                        onChange={(e) => {
+                          setDraftUsername(e.target.value);
+                          if (editError) setEditError('');
+                        }}
+                        aria-label="Username"
+                      />
+                      {editError && (
+                        <span className="settings-error-text" role="alert">
+                          {editError}
+                        </span>
+                      )}
+                      <div className="settings-edit-actions">
                         <button
                           type="button"
-                          className="settings-edit-btn"
-                          onClick={handleStartEditUsername}
+                          className="settings-save-btn"
+                          disabled={isUsernameUnchanged}
+                          onClick={handleSaveUsername}
                         >
-                          Edit
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          className="settings-cancel-btn"
+                          onClick={handleCancelEditUsername}
+                        >
+                          Cancel
                         </button>
                       </div>
-                    ) : (
-                      <>
-                        <input
-                          type="text"
-                          className="settings-username-input"
-                          value={draftUsername}
-                          onChange={(e) => {
-                            setDraftUsername(e.target.value);
-                            if (editError) setEditError('');
-                          }}
-                          aria-label="Username"
-                        />
-                        {editError && (
-                          <span className="settings-error-text" role="alert">
-                            {editError}
-                          </span>
-                        )}
-                        <div className="settings-edit-actions">
-                          <button
-                            type="button"
-                            className="settings-save-btn"
-                            disabled={isUsernameUnchanged}
-                            onClick={handleSaveUsername}
-                          >
-                            Save
-                          </button>
-                          <button
-                            type="button"
-                            className="settings-cancel-btn"
-                            onClick={handleCancelEditUsername}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
+                    </>
+                  )}
+                </div>
+              )}
 
-                  <button
-                    type="button"
-                    className="settings-logout-btn"
-                    onClick={() => setIsLogoutConfirmOpen(true)}
-                  >
-                    Log out
-                  </button>
-                </>
+              {user && (
+                <button
+                  type="button"
+                  className="settings-logout-btn"
+                  onClick={() => setIsLogoutConfirmOpen(true)}
+                >
+                  Log out
+                </button>
               )}
             </div>
           </div>
@@ -965,9 +974,7 @@ function Settings({ user, onUpdateUser, onLogout, onClick }) {
             <div className="settings-modal-board">
               <h2 className="settings-modal-title">LOG OUT?</h2>
               <p className="logout-confirm-text">
-                You will need to sign in again to
-                <br />
-                keep playing.
+                You will need to login again.
               </p>
               <div className="logout-confirm-actions">
                 <button

@@ -15,6 +15,7 @@ import {
   saveLogin,
   clearSavedLogin,
 } from '../services/api';
+import { useGame } from '../context/GameContext';
 
 // Used until the real numbers arrive from the server.
 const EMPTY_PLAYER_INFO = { day: 1, ranking: null, highScore: null };
@@ -25,6 +26,8 @@ function HomeScreen() {
   const [currentUser, setCurrentUser] = useState(() => loadSavedUser());
   const [playerInfo, setPlayerInfo] = useState(EMPTY_PLAYER_INFO);
   const [activeOverlay, setActiveOverlay] = useState(null);
+  const { startGame } = useGame();
+  const [isStarting, setIsStarting] = useState(false);
 
   // Small values worked out from currentUser on every render.
   const userId = currentUser ? currentUser.id : null;
@@ -123,8 +126,21 @@ function HomeScreen() {
     setActiveOverlay(null);
   }
 
-  function handleStart() {
-    navigate('/game');
+  async function handleStart() {
+    if (isStarting) return;
+
+    setIsStarting(true);
+    try {
+      await startGame();
+      navigate('/game');
+    } catch (error) {
+      if (error.status === 401 || error.status === 403) {
+        handleLogout();
+      }
+      alert(error.message);
+    } finally {
+      setIsStarting(false);
+    }
   }
 
   return (

@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Navigate } from 'react-router-dom'; // NEW: Navigate
 import CoffeeMachine from '../components/CoffeeMachine';
 import CupShelf from '../components/CupShelf';
 import ActiveCup from '../components/ActiveCup';
 import GamePaused from '../components/GamePaused';
 import pauseSvg from '../assets/pause.svg';
+import { useGame } from '../context/GameContext'; // NEW
 import './GameScreen.css';
 
 const USERS_STORAGE_KEY = 'madcoffee_users';
@@ -45,6 +46,7 @@ function recordCompletedGame(earnedPoints = 0) {
 function GameScreen() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { sessionId, recipes } = useGame(); // NEW
   const [selectedCup, setSelectedCup] = useState(
     () => location.state?.selectedCup ?? null
   );
@@ -66,6 +68,14 @@ function GameScreen() {
       navigate('/latte-design', { state: { selectedCup } });
     }
   };
+
+  // NEW: no session means the page was refreshed or /game was opened directly.
+  // This must stay BELOW every hook above (useState, useEffect, useGame).
+  if (!sessionId) {
+    return <Navigate to="/" replace />;
+  }
+
+  console.log('Session:', sessionId, 'Recipes:', recipes); // NEW: temporary test line
 
   return (
     <div className="gameplay-container">

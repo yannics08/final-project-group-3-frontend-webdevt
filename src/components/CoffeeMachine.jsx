@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import MachineBody from './MachineBody';
 import IngredientButton from './IngredientButton';
+import TimingBar from './TimingBar';
 import { nozzleDispenseStyles } from './NozzleDispense';
 import {
   hotWaterButtonSvg,
@@ -93,6 +94,16 @@ const BUTTONS = [
 
 function CoffeeMachine({ selectedCup, onIngredientClick }) {
   const [dispenseEvent, setDispenseEvent] = useState(null);
+  // Ingredient waiting for the player to hit "Pour" on the timing bar
+  const [pending, setPending] = useState(null);
+
+  const handlePour = () => {
+    if (!pending || !selectedCup) return;
+    setDispenseEvent({ id: Date.now(), ingredient: pending.ingredient, cupType: selectedCup });
+    if (onIngredientClick) onIngredientClick(pending.ingredient);
+  };
+
+
 
   useEffect(() => {
     if (!dispenseEvent) return undefined;
@@ -104,12 +115,12 @@ function CoffeeMachine({ selectedCup, onIngredientClick }) {
 
   const handlePress = (ingredient) => {
     if (!selectedCup) return;
-    if (ingredient !== "latte-design") {
-      setDispenseEvent({ id: Date.now(), ingredient, cupType: selectedCup });
+    if (ingredient === "latte-design") {
+      setPending(null);
+      if (onIngredientClick) onIngredientClick(ingredient);
+      return;
     }
-    if (onIngredientClick) {
-      onIngredientClick(ingredient);
-    }
+    setPending({ id: Date.now(), ingredient });
   };
 
   return (
@@ -130,6 +141,10 @@ function CoffeeMachine({ selectedCup, onIngredientClick }) {
           ))}
         </div>
       </div>
+
+      {pending && selectedCup && (
+        <TimingBar key={pending.id} onPour={handlePour} onCancel={() => setPending(null)} />
+      )}
     </>
   );
 }

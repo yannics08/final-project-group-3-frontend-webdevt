@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import closeButtonSvg from '../assets/close button.svg';
 import showPasswordSvg from '../assets/show password.svg';
 import hidePasswordSvg from '../assets/hide password.svg';
+import { callApi, saveLogin } from '../services/api';
 
 const USERS_STORAGE_KEY = 'madcoffee_users';
 const CURRENT_USER_STORAGE_KEY = 'madcoffee_current_user';
@@ -272,23 +273,6 @@ const authModalStyles = `
 }
 `;
 
-function getStoredUsers() {
-  try {
-    const raw = localStorage.getItem(USERS_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveStoredUsers(users) {
-  localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
-}
-
-function saveCurrentUser(user) {
-  localStorage.setItem(CURRENT_USER_STORAGE_KEY, JSON.stringify(user));
-}
-
 function AuthModal({ mode = 'login', onClose, onSwitchMode, onSuccess }) {
   const [internalMode, setInternalMode] = useState(mode);
   const [username, setUsername] = useState('');
@@ -297,6 +281,7 @@ function AuthModal({ mode = 'login', onClose, onSwitchMode, onSuccess }) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const currentMode = internalMode;
   const isLogin = currentMode === 'login';
@@ -311,7 +296,7 @@ function AuthModal({ mode = 'login', onClose, onSwitchMode, onSuccess }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage('');
 
@@ -321,77 +306,48 @@ function AuthModal({ mode = 'login', onClose, onSwitchMode, onSuccess }) {
       return;
     }
 
-    const users = getStoredUsers();
-
-    if (isLogin) {
-      if (trimmedUsername.toLowerCase() === 'admin' && password === 'yesadmin123!') {
-        const adminSession = {
-          username: 'admin',
-          isAdmin: true,
-        };
-        saveCurrentUser(adminSession);
-        if (onSuccess) {
-          onSuccess(adminSession);
-        }
-        onClose();
+    // These extra checks only apply when signing up.
+    if (!isLogin) {
+      // Letters, numbers and underscores only, 3 to 20 characters long.
+      const usernameIsValid = /^[A-Za-z0-9_]{3,20}$/.test(trimmedUsername);
+      if (!usernameIsValid) {
+        setErrorMessage('Username must be 3 to 20 characters: letters, numbers and underscores only.');
         return;
       }
 
-      const matchedUser = users.find(
-        (u) => u.username.toLowerCase() === trimmedUsername.toLowerCase() && u.password === password
-      );
+      const hasMinLength = password.length >= 8;
+      const hasNumber = /\d/.test(password);
+      const hasSpecialChar = /[^A-Za-z0-9]/.test(password);
 
-      if (!matchedUser) {
-        setErrorMessage('Invalid username or password.');
+      if (!hasMinLength || !hasNumber || !hasSpecialChar) {
+        setErrorMessage('Password must be at least 8 characters with a number and special character.');
         return;
       }
 
-      const sessionUser = {
-        username: matchedUser.username,
-        points: matchedUser.points ?? 0,
-        day: matchedUser.day ?? 0,
-      };
-      saveCurrentUser(sessionUser);
+      if (password !== confirmPassword) {
+        setErrorMessage('Passwords do not match.');
+        return;
+      }
+    }
 
+    setIsSubmitting(true);
+    try {
+      const path = isLogin ? '/api/auth/login' : '/api/auth/register';
+      const data = await callApi(path, 'POST', {
+        username: trimmedUsername,
+        password: password,
+      });
+
+      saveLogin(data.token, data.user);
       if (onSuccess) {
-        onSuccess(sessionUser);
+        onSuccess(data.user);
       }
       onClose();
-      return;
+    } catch (error) {
+      setErrorMessage(error.message);
+    } finally {
+      setIsSubmitting(false);
     }
-
-    const usernameExists =
-      trimmedUsername.toLowerCase() === 'admin' ||
-      users.some((u) => u.username.toLowerCase() === trimmedUsername.toLowerCase());
-    if (usernameExists) {
-      setErrorMessage('Username is already taken.');
-      return;
-    }
-
-    const hasMinLength = password.length >= 8;
-    const hasNumber = /\d/.test(password);
-    const hasSpecialChar = /[^A-Za-z0-9]/.test(password);
-
-    if (!hasMinLength || !hasNumber || !hasSpecialChar) {
-      setErrorMessage('Password must be at least 8 characters with a number and special character.');
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setErrorMessage('Passwords do not match.');
-      return;
-    }
-
-    const updatedUsers = [...users, { username: trimmedUsername, password, points: 0, day: 0 }];
-    saveStoredUsers(updatedUsers);
-
-    const sessionUser = { username: trimmedUsername, points: 0, day: 0 };
-    saveCurrentUser(sessionUser);
-
-    if (onSuccess) {
-      onSuccess(sessionUser);
-    }
-    onClose();
   };
 
   const handleSwitch = (newMode) => {
@@ -488,8 +444,8 @@ function AuthModal({ mode = 'login', onClose, onSwitchMode, onSuccess }) {
                   </div>
                 )}
 
-                <button type="submit" className="cafe-modal-btn">
-                  Log in
+                <button type="submit" className="cafe-modal-btn" disabled={isSubmitting}>
+                  {isSubmitting ? 'Please wait...' : 'Log in'}
                 </button>
 
                 <div className="cafe-modal-footer">
@@ -593,8 +549,8 @@ function AuthModal({ mode = 'login', onClose, onSwitchMode, onSuccess }) {
                   </div>
                 )}
 
-                <button type="submit" className="cafe-modal-btn">
-                  Sign up
+                <button type="submit" className="cafe-modal-btn" disabled={isSubmitting}>
+                  {isSubmitting ? 'Please wait...' : 'Sign up'}
                 </button>
 
                 <div className="cafe-modal-footer">

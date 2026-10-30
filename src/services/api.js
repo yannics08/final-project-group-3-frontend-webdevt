@@ -120,6 +120,27 @@ export function getStoredToken() {
   return null;
 }
 
+export function saveLogin(token, user) {
+  localStorage.setItem(TOKEN_STORAGE_KEY, token);
+  localStorage.setItem(CURRENT_USER_STORAGE_KEY, JSON.stringify(user));
+}
+
+export function clearSavedLogin() {
+  localStorage.removeItem(TOKEN_STORAGE_KEY);
+  localStorage.removeItem(CURRENT_USER_STORAGE_KEY);
+}
+
+export function loadSavedUser() {
+  // No token means not logged in, even if an old fake user is still saved.
+  if (!getStoredToken()) return null;
+  try {
+    const raw = localStorage.getItem(CURRENT_USER_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
 const API_TIMEOUT_MS = 90000;
 
 export async function callApi(path, method = 'GET', body = null, token = null) {

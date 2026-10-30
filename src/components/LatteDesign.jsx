@@ -1,4 +1,8 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import GamePaused from './GamePaused';
+import pauseSvg from '../assets/pause.svg';
+import latteDesignBgSvg from '../assets/latte design screen (bg).svg';
 import latteTopViewSvg from '../assets/latte top view.svg';
 
 import heartOutlineSvg from '../assets/heart latte outline.svg';
@@ -95,19 +99,93 @@ const latteDesignStyles = `
 @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Poppins:wght@500;600;700;800&display=swap');
 
 /* ==========================================================================
-   Latte Art Tracing Screen Overlay (1440 x 1024 Coordinate Space)
+   Latte Art Tracing Screen (1440 x 1024 Coordinate Space)
    ========================================================================== */
 
+.latte-screen-container {
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  width: 100vw;
+  padding: min(24px, 2vw, 2vh);
+  background-color: #2b1810;
+  background-image: radial-gradient(circle at 50% 30%, #3e2417 0%, #201109 100%);
+  user-select: none;
+}
+
 .latte-design-screen {
-  position: absolute;
-  inset: 0;
-  z-index: 50;
-  background-color: #593822;
+  box-sizing: border-box;
+  position: relative;
+  width: min(1200px, 92vw, calc(90vh * 1440 / 1024));
+  aspect-ratio: 1440 / 1024;
+  container-type: inline-size;
+  background-color: #5A3824;
+  background-image: url("${latteDesignBgSvg}");
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  background-position: center;
+  border: min(7px, 0.53vw, 0.73vh) solid #3d2112;
+  border-radius: min(14px, 1.07vw, 1.48vh);
+  box-shadow:
+    0 18px 45px rgba(0, 0, 0, 0.65),
+    0 4px 12px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: space-between;
   user-select: none;
   animation: latteScreenFadeIn 0.2s ease-out;
+}
+
+.latte-design-screen.is-embedded {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 50;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.latte-pause-btn {
+  box-sizing: border-box;
+  position: absolute;
+  width: calc(96 / 1440 * 100%);
+  max-width: 96px;
+  aspect-ratio: 100 / 117;
+  right: calc(21 / 1440 * 100%);
+  top: 0px;
+  z-index: 30;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  outline: none;
+  user-select: none;
+  transform-origin: top center;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.latte-pause-btn img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+  user-select: none;
+}
+
+.latte-pause-btn:hover {
+  transform: translateY(2px);
+  filter: brightness(1.03);
+}
+
+.latte-pause-btn:active {
+  transform: translateY(5px);
+  filter: brightness(0.96);
 }
 
 @keyframes latteScreenFadeIn {
@@ -176,15 +254,17 @@ const latteDesignStyles = `
   left: calc(946 / 1440 * 100%);
   top: calc(242 / 1024 * 100%);
   width: calc(444 / 1440 * 100%);
-  aspect-ratio: 444 / 582;
+  height: calc(582 / 1024 * 100%);
   background: #F4E1C1;
-  border: 9px solid #5F5F5F;
-  border-radius: 24px;
+  border: calc(7.5 / 1440 * 100cqw) solid #5F5F5F;
+  border-radius: calc(24 / 1440 * 100cqw);
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  padding: 3.2% 3.2% 3.4%;
+  justify-content: center;
+  gap: calc(24 / 1440 * 100cqw);
+  padding: calc(28 / 1440 * 100cqw) calc(34 / 1440 * 100cqw);
+  overflow: hidden;
 }
 
 .latte-preview-btn {
@@ -192,11 +272,12 @@ const latteDesignStyles = `
   border: none;
   padding: 0;
   margin: 0;
-  width: 54%;
+  width: 58%;
   aspect-ratio: 1 / 1;
   border-radius: 50%;
   cursor: pointer;
   outline: none;
+  flex-shrink: 0;
   transition: transform 0.14s ease;
 }
 
@@ -216,10 +297,10 @@ const latteDesignStyles = `
 }
 
 .latte-design-title {
-  margin: 2% 0 0 0;
+  margin: calc(-6 / 1440 * 100cqw) 0 0 0;
   font-family: 'Fredoka', 'Poppins', sans-serif;
   font-weight: 700;
-  font-size: clamp(16px, 2.2vw, 31px);
+  font-size: calc(31 / 1440 * 100cqw);
   color: #361E10;
   text-align: center;
   line-height: 1.1;
@@ -227,10 +308,10 @@ const latteDesignStyles = `
 
 /* Match Progress Section */
 .latte-match-section {
-  width: 82%;
+  width: 84%;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: calc(7 / 1440 * 100cqw);
 }
 
 .latte-match-labels {
@@ -239,16 +320,17 @@ const latteDesignStyles = `
   justify-content: space-between;
   font-family: 'Poppins', sans-serif;
   font-weight: 600;
-  font-size: clamp(12px, 1.45vw, 20px);
+  font-size: calc(20 / 1440 * 100cqw);
   color: #361E10;
+  line-height: 1.1;
 }
 
 .latte-match-track {
   box-sizing: border-box;
   width: 100%;
-  height: clamp(14px, 1.65vw, 23px);
+  height: calc(23 / 1440 * 100cqw);
   background: #361E10;
-  border: 3.5px solid #361E10;
+  border: calc(3.5 / 1440 * 100cqw) solid #361E10;
   border-radius: 999px;
   overflow: hidden;
 }
@@ -260,22 +342,23 @@ const latteDesignStyles = `
   transition: width 0.12s ease-out;
 }
 
-/* Serve & Cancel Action Buttons */
+/* Done & Cancel Action Buttons */
 .latte-card-actions {
-  width: 82%;
+  width: 84%;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 9%;
-  margin-top: 2%;
+  margin-top: calc(4 / 1440 * 100cqw);
 }
 
 .latte-action-btn {
   box-sizing: border-box;
   flex: 1;
   aspect-ratio: 144 / 58;
-  border: 2.5px solid #361E10;
-  border-radius: 12px;
+  border: calc(2.5 / 1440 * 100cqw) solid #361E10;
+  border-radius: calc(12 / 1440 * 100cqw);
+  padding: 0;
   cursor: pointer;
   outline: none;
   display: flex;
@@ -283,11 +366,12 @@ const latteDesignStyles = `
   justify-content: center;
   font-family: 'Fredoka', 'Poppins', sans-serif;
   font-weight: 600;
-  font-size: clamp(13px, 1.7vw, 24px);
+  font-size: calc(23 / 1440 * 100cqw);
+  line-height: 1;
   transition: transform 0.12s ease, filter 0.12s ease;
 }
 
-.latte-action-btn.is-serve {
+.latte-action-btn.is-done {
   background: #B5C665;
   color: #FFFFFF;
 }
@@ -312,11 +396,16 @@ function buildPolylinePoints(stroke) {
   return stroke.map((pt) => `${pt.x.toFixed(1)},${pt.y.toFixed(1)}`).join(' ');
 }
 
-function LatteDesign({ isOpen, onServe, onCancel, initialDesignIndex = 0 }) {
+function LatteDesign({ isOpen = true, onDone, onServe, onCancel, initialDesignIndex = 0 }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const isStandaloneScreen = location.pathname === '/latte-design' && !onDone && !onServe && !onCancel;
+
   const [designIndex, setDesignIndex] = useState(initialDesignIndex);
   const [strokes, setStrokes] = useState([]);
   const [isDrawing, setIsDrawing] = useState(false);
   const [targetPoints, setTargetPoints] = useState([]);
+  const [isPaused, setIsPaused] = useState(false);
 
   const traceSvgRef = useRef(null);
   const measureGroupRef = useRef(null);
@@ -444,10 +533,19 @@ function LatteDesign({ isOpen, onServe, onCancel, initialDesignIndex = 0 }) {
     setDesignIndex((prev) => (prev + 1) % LATTE_DESIGNS.length);
   };
 
-  const handleServeClick = () => {
+  const handleDoneClick = () => {
+    const result = { design: currentDesign.id, matchPercent };
     setStrokes([]);
-    if (onServe) {
-      onServe({ design: currentDesign.id, matchPercent });
+    const callback = onDone || onServe;
+    if (callback) {
+      callback(result);
+    } else {
+      navigate('/game', {
+        state: {
+          selectedCup: location.state?.selectedCup ?? null,
+          latteResult: result,
+        },
+      });
     }
   };
 
@@ -455,146 +553,184 @@ function LatteDesign({ isOpen, onServe, onCancel, initialDesignIndex = 0 }) {
     setStrokes([]);
     if (onCancel) {
       onCancel();
+    } else {
+      navigate('/game', {
+        state: {
+          selectedCup: location.state?.selectedCup ?? null,
+        },
+      });
     }
   };
+
+  const screenContent = (
+    <main
+      className={isStandaloneScreen ? 'latte-design-screen' : 'latte-design-screen is-embedded'}
+      aria-label="Latte Art Design Screen"
+    >
+      <button
+        type="button"
+        className="latte-pause-btn"
+        onClick={() => setIsPaused(true)}
+        aria-label="Pause Game"
+        title="Pause"
+      >
+        <img src={pauseSvg} alt="" draggable="false" />
+      </button>
+
+      {/* Left: Top-View Cup + Dashed Outline + Interactive Tracing Canvas */}
+      <div className="latte-cup-stage">
+        <img
+          className="latte-cup-base-img"
+          src={latteTopViewSvg}
+          alt="Latte Cup Top View"
+          draggable="false"
+        />
+
+        <div className="latte-outline-container">
+          <img
+            className="latte-outline-img"
+            src={currentDesign.outlineSrc}
+            alt={`${currentDesign.name} Outline`}
+            draggable="false"
+          />
+
+          <svg
+            ref={traceSvgRef}
+            className="latte-trace-svg"
+            viewBox="0 0 344 344"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+          >
+            {/* Hidden measurement group for sampling target outline points */}
+            <g ref={measureGroupRef} opacity="0" pointerEvents="none">
+              {currentDesign.svgElements.map((el, idx) => {
+                if (el.type === 'path') {
+                  return <path key={idx} d={el.d} />;
+                }
+                if (el.type === 'ellipse') {
+                  return (
+                    <ellipse
+                      key={idx}
+                      cx={el.cx}
+                      cy={el.cy}
+                      rx={el.rx}
+                      ry={el.ry}
+                      transform={el.transform}
+                    />
+                  );
+                }
+                if (el.type === 'circle') {
+                  return <circle key={idx} cx={el.cx} cy={el.cy} r={el.r} />;
+                }
+                return null;
+              })}
+            </g>
+
+            {/* Player's traced latte foam strokes */}
+            {strokes.map((stroke, idx) =>
+              stroke.length === 1 ? (
+                <circle
+                  key={idx}
+                  cx={stroke[0].x}
+                  cy={stroke[0].y}
+                  r="8"
+                  fill="#FFFFFF"
+                />
+              ) : (
+                <polyline
+                  key={idx}
+                  points={buildPolylinePoints(stroke)}
+                  stroke="#FFFFFF"
+                  strokeWidth="16"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill="none"
+                />
+              )
+            )}
+          </svg>
+        </div>
+      </div>
+
+      {/* Right: Expected Output Card, Match Bar, Done & Cancel Buttons */}
+      <div className="latte-info-card">
+        <button
+          type="button"
+          className="latte-preview-btn"
+          onClick={handleCycleDesign}
+          title="Click to switch latte art design"
+          aria-label={`Expected Design: ${currentDesign.name}. Click to switch design`}
+        >
+          <img
+            className="latte-preview-img"
+            src={currentDesign.designSrc}
+            alt={currentDesign.name}
+            draggable="false"
+          />
+        </button>
+
+        <h2 className="latte-design-title">{currentDesign.name}</h2>
+
+        <div className="latte-match-section">
+          <div className="latte-match-labels">
+            <span>Match</span>
+            <span>{matchPercent}%</span>
+          </div>
+          <div className="latte-match-track">
+            <div
+              className="latte-match-fill"
+              style={{ width: `${matchPercent}%` }}
+            />
+          </div>
+        </div>
+
+        <div className="latte-card-actions">
+          <button
+            type="button"
+            className="latte-action-btn is-done"
+            onClick={handleDoneClick}
+          >
+            Done
+          </button>
+          <button
+            type="button"
+            className="latte-action-btn is-cancel"
+            onClick={handleCancelClick}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+
+      <GamePaused
+        isOpen={isPaused}
+        onContinue={() => setIsPaused(false)}
+        onRestart={() => {
+          setStrokes([]);
+          if (onCancel) {
+            onCancel();
+          } else {
+            navigate('/game');
+          }
+        }}
+      />
+    </main>
+  );
 
   return (
     <>
       <style>{latteDesignStyles}</style>
-
-      <div className="latte-design-screen" aria-label="Latte Art Design Screen">
-        {/* Left: Top-View Cup + Dashed Outline + Interactive Tracing Canvas */}
-        <div className="latte-cup-stage">
-          <img
-            className="latte-cup-base-img"
-            src={latteTopViewSvg}
-            alt="Latte Cup Top View"
-            draggable="false"
-          />
-
-          <div className="latte-outline-container">
-            <img
-              className="latte-outline-img"
-              src={currentDesign.outlineSrc}
-              alt={`${currentDesign.name} Outline`}
-              draggable="false"
-            />
-
-            <svg
-              ref={traceSvgRef}
-              className="latte-trace-svg"
-              viewBox="0 0 344 344"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              onPointerDown={handlePointerDown}
-              onPointerMove={handlePointerMove}
-              onPointerUp={handlePointerUp}
-              onPointerCancel={handlePointerUp}
-            >
-              {/* Hidden measurement group for sampling target outline points */}
-              <g ref={measureGroupRef} opacity="0" pointerEvents="none">
-                {currentDesign.svgElements.map((el, idx) => {
-                  if (el.type === 'path') {
-                    return <path key={idx} d={el.d} />;
-                  }
-                  if (el.type === 'ellipse') {
-                    return (
-                      <ellipse
-                        key={idx}
-                        cx={el.cx}
-                        cy={el.cy}
-                        rx={el.rx}
-                        ry={el.ry}
-                        transform={el.transform}
-                      />
-                    );
-                  }
-                  if (el.type === 'circle') {
-                    return <circle key={idx} cx={el.cx} cy={el.cy} r={el.r} />;
-                  }
-                  return null;
-                })}
-              </g>
-
-              {/* Player's traced latte foam strokes */}
-              {strokes.map((stroke, idx) =>
-                stroke.length === 1 ? (
-                  <circle
-                    key={idx}
-                    cx={stroke[0].x}
-                    cy={stroke[0].y}
-                    r="8"
-                    fill="#FFFFFF"
-                  />
-                ) : (
-                  <polyline
-                    key={idx}
-                    points={buildPolylinePoints(stroke)}
-                    stroke="#FFFFFF"
-                    strokeWidth="16"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    fill="none"
-                  />
-                )
-              )}
-            </svg>
-          </div>
-        </div>
-
-        {/* Right: Expected Output Card, Match Bar, Serve & Cancel Buttons */}
-        <div className="latte-info-card">
-          <button
-            type="button"
-            className="latte-preview-btn"
-            onClick={handleCycleDesign}
-            title="Click to switch latte art design"
-            aria-label={`Expected Design: ${currentDesign.name}. Click to switch design`}
-          >
-            <img
-              className="latte-preview-img"
-              src={currentDesign.designSrc}
-              alt={currentDesign.name}
-              draggable="false"
-            />
-          </button>
-
-          <h2 className="latte-design-title">{currentDesign.name}</h2>
-
-          <div className="latte-match-section">
-            <div className="latte-match-labels">
-              <span>Match</span>
-              <span>{matchPercent}%</span>
-            </div>
-            <div className="latte-match-track">
-              <div
-                className="latte-match-fill"
-                style={{ width: `${matchPercent}%` }}
-              />
-            </div>
-          </div>
-
-          <div className="latte-card-actions">
-            <button
-              type="button"
-              className="latte-action-btn is-serve"
-              onClick={handleServeClick}
-            >
-              Serve
-            </button>
-            <button
-              type="button"
-              className="latte-action-btn is-cancel"
-              onClick={handleCancelClick}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      </div>
+      {isStandaloneScreen ? (
+        <div className="latte-screen-container">{screenContent}</div>
+      ) : (
+        screenContent
+      )}
     </>
   );
 }
 
 export default LatteDesign;
-

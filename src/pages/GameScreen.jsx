@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import CoffeeMachine from '../components/CoffeeMachine';
 import CupShelf from '../components/CupShelf';
 import ActiveCup from '../components/ActiveCup';
 import GamePaused from '../components/GamePaused';
-import LatteDesign from '../components/LatteDesign';
 import pauseSvg from '../assets/pause.svg';
 import './GameScreen.css';
 
@@ -43,21 +43,28 @@ function recordCompletedGame(earnedPoints = 0) {
 }
 
 function GameScreen() {
-  const [selectedCup, setSelectedCup] = useState(null);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [selectedCup, setSelectedCup] = useState(
+    () => location.state?.selectedCup ?? null
+  );
   const [isPaused, setIsPaused] = useState(false);
-  const [isLatteDesignOpen, setIsLatteDesignOpen] = useState(false);
+
+  useEffect(() => {
+    if (location.state?.latteResult) {
+      const earnedPoints = location.state.latteResult.matchPercent ?? 0;
+      recordCompletedGame(earnedPoints);
+      navigate(location.pathname, {
+        replace: true,
+        state: { selectedCup: location.state?.selectedCup ?? null },
+      });
+    }
+  }, [location.pathname, location.state, navigate]);
 
   const handleIngredientClick = (ingredient) => {
     if (ingredient === 'latte-design') {
-      setIsLatteDesignOpen(true);
+      navigate('/latte-design', { state: { selectedCup } });
     }
-  };
-
-  const handleServe = (result) => {
-    const earnedPoints = result?.matchPercent ?? 0;
-    recordCompletedGame(earnedPoints);
-    setSelectedCup(null);
-    setIsLatteDesignOpen(false);
   };
 
   return (
@@ -80,18 +87,11 @@ function GameScreen() {
         <ActiveCup cupType={selectedCup} />
         <CupShelf onSelectCup={setSelectedCup} />
 
-        <LatteDesign
-          isOpen={isLatteDesignOpen}
-          onServe={handleServe}
-          onCancel={() => setIsLatteDesignOpen(false)}
-        />
-
         <GamePaused
           isOpen={isPaused}
           onContinue={() => setIsPaused(false)}
           onRestart={() => {
             setSelectedCup(null);
-            setIsLatteDesignOpen(false);
           }}
         />
       </main>

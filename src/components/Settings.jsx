@@ -575,9 +575,18 @@ const settingsStyles = `
   transform: translateY(-1px);
   filter: brightness(1.05);
 }
+.settings-success-text {
+  display: block;
+  margin-top: 8px;
+  font-family: 'Nunito', 'Fredoka', sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 1.35;
+  color: #4F6B1F;
+}
 `;
 
-function Settings({ user, onUpdateUser, onLogout, onOpenLeaderboard, onClick }) {
+function Settings({ user, onUpdateUser, onLogout, onOpenLeaderboard, onClick, autoOpenEditKey = 0, }) {
   const isAdmin = Boolean(user && (user.isAdmin || user.username?.toLowerCase() === 'admin'));
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
@@ -592,6 +601,20 @@ function Settings({ user, onUpdateUser, onLogout, onOpenLeaderboard, onClick }) 
   const [isEditingUsername, setIsEditingUsername] = useState(false);
   const [draftUsername, setDraftUsername] = useState('');
   const [editError, setEditError] = useState('');
+  const [savedUsername, setSavedUsername] = useState('');
+  const [handledEditKey, setHandledEditKey] = useState(autoOpenEditKey);
+
+  if (autoOpenEditKey !== handledEditKey) {
+    setHandledEditKey(autoOpenEditKey);
+    if (user && !isAdmin) {
+      setIsMenuOpen(false);
+      setDraftUsername(user.username || '');
+      setEditError('');
+      setSavedUsername('');
+      setIsEditingUsername(true);
+      setIsOpen(true);
+    }
+  }
 
   useEffect(() => {
     function handleKeyDown(e) {
@@ -641,6 +664,7 @@ function Settings({ user, onUpdateUser, onLogout, onOpenLeaderboard, onClick }) 
   };
 
   const closeSettingsModal = () => {
+    setSavedUsername('');
     setIsOpen(false);
     setIsEditingUsername(false);
     setEditError('');
@@ -659,6 +683,7 @@ function Settings({ user, onUpdateUser, onLogout, onOpenLeaderboard, onClick }) 
   };
 
   const handleStartEditUsername = () => {
+    setSavedUsername('');
     setDraftUsername(user?.username || '');
     setEditError('');
     setIsEditingUsername(true);
@@ -696,12 +721,12 @@ function Settings({ user, onUpdateUser, onLogout, onOpenLeaderboard, onClick }) 
 
       const updatedUsers = users.map((u) =>
         u.username.toLowerCase() === (user?.username || '').toLowerCase()
-          ? { ...u, username: trimmed, nameResetPending: false }
+          ? { ...u, username: trimmed, nameResetPending: false, resetFrom: undefined }
           : u
       );
       localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(updatedUsers));
 
-      const updatedUser = { ...user, username: trimmed, nameResetPending: false };
+      const updatedUser = { ...user, username: trimmed, nameResetPending: false, noticeAcked: false };
       localStorage.setItem(CURRENT_USER_STORAGE_KEY, JSON.stringify(updatedUser));
 
       if (onUpdateUser) {
@@ -709,6 +734,7 @@ function Settings({ user, onUpdateUser, onLogout, onOpenLeaderboard, onClick }) 
       }
       setIsEditingUsername(false);
       setEditError('');
+      setSavedUsername(trimmed);
     } catch {
       setEditError('Could not save username.');
     }
@@ -896,16 +922,23 @@ function Settings({ user, onUpdateUser, onLogout, onOpenLeaderboard, onClick }) 
                 <div className="settings-user-section">
                   <span className="settings-user-label">Username</span>
                   {!isEditingUsername ? (
-                    <div className="settings-username-display-row">
-                      <div className="settings-username-pill">{user.username}</div>
-                      <button
-                        type="button"
-                        className="settings-edit-btn"
-                        onClick={handleStartEditUsername}
-                      >
-                        Edit
-                      </button>
-                    </div>
+                    <>
+                      <div className="settings-username-display-row">
+                        <div className="settings-username-pill">{user.username}</div>
+                        <button
+                          type="button"
+                          className="settings-edit-btn"
+                          onClick={handleStartEditUsername}
+                        >
+                          Edit
+                        </button>
+                      </div>
+                      {savedUsername && (
+                        <span className="settings-success-text" role="status">
+                          Username saved! You can now log in with {savedUsername}.
+                        </span>
+                      )}
+                    </>
                   ) : (
                     <>
                       <input

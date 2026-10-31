@@ -289,7 +289,7 @@ function saveCurrentUser(user) {
   localStorage.setItem(CURRENT_USER_STORAGE_KEY, JSON.stringify(user));
 }
 
-function AuthModal({ mode = 'login', onClose, onSwitchMode, onSuccess }) {
+function AuthModal({ mode = 'login', onClose, onSwitchMode, onSuccess, onAccountDeleted }) {
   const [internalMode, setInternalMode] = useState(mode);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -337,19 +337,45 @@ function AuthModal({ mode = 'login', onClose, onSwitchMode, onSuccess }) {
         return;
       }
 
-      const matchedUser = users.find(
-        (u) => u.username.toLowerCase() === trimmedUsername.toLowerCase() && u.password === password
-      );
+      const matchedUser =
+        users.find(
+          (u) => u.username.toLowerCase() === trimmedUsername.toLowerCase() && u.password === password
+        ) ||
+        users.find(
+          (u) =>
+            (u.nameResetPending || u.deleted) &&
+            u.resetFrom?.toLowerCase() === trimmedUsername.toLowerCase() &&
+            u.password === password
+        );
 
       if (!matchedUser) {
         setErrorMessage('Invalid username or password.');
         return;
       }
 
+      if (matchedUser.deleted) {
+        if (onAccountDeleted) {
+          onAccountDeleted();
+        }
+        onClose();
+        return;
+      }
+
+      if (
+        matchedUser.resetFrom &&
+        matchedUser.resetFrom.toLowerCase() === trimmedUsername.toLowerCase() &&
+        matchedUser.username.toLowerCase() !== trimmedUsername.toLowerCase()
+      ) {
+        saveStoredUsers(
+          users.map((u) => (u === matchedUser ? { ...u, resetFrom: undefined } : u))
+        );
+      }
+
       const sessionUser = {
         username: matchedUser.username,
         points: matchedUser.points ?? 0,
         day: matchedUser.day ?? 0,
+        nameResetPending: Boolean(matchedUser.nameResetPending),
       };
       saveCurrentUser(sessionUser);
 
@@ -362,7 +388,11 @@ function AuthModal({ mode = 'login', onClose, onSwitchMode, onSuccess }) {
 
     const usernameExists =
       trimmedUsername.toLowerCase() === 'admin' ||
-      users.some((u) => u.username.toLowerCase() === trimmedUsername.toLowerCase());
+      users.some(
+        (u) =>
+          u.username.toLowerCase() === trimmedUsername.toLowerCase() ||
+          (u.nameResetPending && u.resetFrom?.toLowerCase() === trimmedUsername.toLowerCase())
+      );
     if (usernameExists) {
       setErrorMessage('Username is already taken.');
       return;

@@ -6,7 +6,6 @@ import resetNameButtonSvg from '../assets/reset name button.svg';
 import deleteButtonSvg from '../assets/delete button.svg';
 
 const USERS_STORAGE_KEY = 'madcoffee_users';
-const CURRENT_USER_STORAGE_KEY = 'madcoffee_current_user';
 
 const adminDashboardStyles = `
 @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700;800&family=Lilita+One&family=Nunito:wght@600;700;800;900&display=swap');
@@ -449,7 +448,16 @@ function loadStoredUsers() {
   try {
     const raw = localStorage.getItem(USERS_STORAGE_KEY);
     const parsed = raw ? JSON.parse(raw) : [];
-    return parsed.filter((u) => u.username?.toLowerCase() !== 'admin');
+    return parsed.filter((u) => u.username?.toLowerCase() !== 'admin' && !u.deleted);
+  } catch {
+    return [];
+  }
+}
+
+function loadAllUsers() {
+  try {
+    const raw = localStorage.getItem(USERS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
   }
@@ -513,7 +521,7 @@ function AdminDashboard({ onClose }) {
 
   const handleOpenResetModal = (player) => {
     if (player.nameResetPending) return;
-    const defaultName = generateDefaultPlayerName(users);
+    const defaultName = generateDefaultPlayerName(loadAllUsers());
     setResetTarget({ player, defaultName });
   };
 
@@ -521,51 +529,32 @@ function AdminDashboard({ onClose }) {
     if (!resetTarget) return;
     const { player, defaultName } = resetTarget;
 
-    const updatedUsers = users.map((u) =>
+    const updatedUsers = loadAllUsers().map((u) =>
       u.username.toLowerCase() === player.username.toLowerCase()
-        ? { ...u, username: defaultName, nameResetPending: true }
+        ? {
+            ...u,
+            username: defaultName,
+            nameResetPending: true,
+            resetFrom: player.username,
+          }
         : u
     );
     localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(updatedUsers));
-    setUsers(updatedUsers);
-
-    try {
-      const rawCurrent = localStorage.getItem(CURRENT_USER_STORAGE_KEY);
-      if (rawCurrent) {
-        const parsedCurrent = JSON.parse(rawCurrent);
-        if (parsedCurrent.username?.toLowerCase() === player.username.toLowerCase()) {
-          localStorage.setItem(
-            CURRENT_USER_STORAGE_KEY,
-            JSON.stringify({ ...parsedCurrent, username: defaultName, nameResetPending: true })
-          );
-        }
-      }
-    } catch {
-      void 0;
-    }
+    setUsers(updatedUsers.filter((u) => u.username?.toLowerCase() !== 'admin' && !u.deleted));
 
     setResetTarget(null);
   };
 
   const handleConfirmDeletePlayer = () => {
     if (!deleteTarget) return;
-    const updatedUsers = users.filter(
-      (u) => u.username.toLowerCase() !== deleteTarget.username.toLowerCase()
+
+    const updatedUsers = loadAllUsers().map((u) =>
+      u.username.toLowerCase() === deleteTarget.username.toLowerCase()
+        ? { ...u, deleted: true }
+        : u
     );
     localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(updatedUsers));
-    setUsers(updatedUsers);
-
-    try {
-      const rawCurrent = localStorage.getItem(CURRENT_USER_STORAGE_KEY);
-      if (rawCurrent) {
-        const parsedCurrent = JSON.parse(rawCurrent);
-        if (parsedCurrent.username?.toLowerCase() === deleteTarget.username.toLowerCase()) {
-          localStorage.removeItem(CURRENT_USER_STORAGE_KEY);
-        }
-      }
-    } catch {
-      void 0;
-    }
+    setUsers(updatedUsers.filter((u) => u.username?.toLowerCase() !== 'admin' && !u.deleted));
 
     setDeleteTarget(null);
   };
@@ -752,4 +741,3 @@ function AdminDashboard({ onClose }) {
 }
 
 export default AdminDashboard;
-

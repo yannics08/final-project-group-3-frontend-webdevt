@@ -196,7 +196,7 @@ function loadSortedLeaderboardUsers() {
     const raw = localStorage.getItem(USERS_STORAGE_KEY);
     const parsed = raw ? JSON.parse(raw) : [];
     return parsed
-      .filter((u) => u.username?.toLowerCase() !== 'admin')
+      .filter((u) => u.username?.toLowerCase() !== 'admin' && !u.deleted)
       .sort((a, b) => (b.points ?? 0) - (a.points ?? 0));
   } catch {
     return [];

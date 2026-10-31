@@ -1,12 +1,12 @@
 const serveButtonStyles = `
-@import url('https://fonts.googleapis.com/css2?family=Poor+Story&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700;800&display=swap');
 
 .serve-btn {
   position: absolute;
-  left: calc(480 / 1440 * 100%);
-  top: calc(628 / 1024 * 100%);
-  width: calc(200 / 1440 * 100%);
-  aspect-ratio: 200 / 80;
+  left: calc(460 / 1440 * 100%);
+  bottom: calc((1024 - 616) / 1024 * 100%);
+  width: calc(185 / 1440 * 100%);
+  aspect-ratio: 185 / 72;
   z-index: 20;
   container-type: inline-size;
   background: transparent;
@@ -28,15 +28,23 @@ const serveButtonStyles = `
   background: #9CAF37;
   border-style: solid;
   border-color: #361E10;
-  border-width: 2cqw 2cqw 4.5cqw 2cqw;
-  border-radius: 10cqw;
-  box-shadow: 0 0 1.5cqw rgba(0, 0, 0, 0.25);
-  font-family: 'Poor Story', 'Comic Sans MS', cursive;
-  font-size: 18cqw;
+  border-width: 2.2cqw 2.2cqw 4.8cqw 2.2cqw;
+  border-radius: 999px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+  font-family: 'Fredoka', 'Poppins', sans-serif;
+  font-weight: 700;
+  font-size: 19cqw;
   line-height: 1;
+  letter-spacing: 1.5px;
   color: #FFFFFF;
   paint-order: stroke fill;
-  -webkit-text-stroke: 1.8cqw #361E10;
+  -webkit-text-stroke: 2cqw #361E10;
+  text-shadow:
+    -0.5cqw -0.5cqw 0 #361E10,
+     0.5cqw -0.5cqw 0 #361E10,
+  -0.5cqw  0.5cqw 0 #361E10,
+   0.5cqw  0.5cqw 0 #361E10,
+   0 0.8cqw 1cqw rgba(0, 0, 0, 0.35);
 }
 
 .serve-btn:not(:disabled):hover {

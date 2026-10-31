@@ -25,7 +25,7 @@ const ACTIVE_CUP_ASSETS = {
 const activeCupStyles = `
 .active-cup-slot {
   position: absolute;
-  left: calc(1003 / 1440 * 100%);
+  left: calc(1058 / 1440 * 100%);
   bottom: calc((1024 - 584) / 1024 * 100%);
   transform: translateX(-50%);
   z-index: 25;
@@ -65,7 +65,7 @@ const activeCupStyles = `
 .active-cup-slot.is-teacup {
   width: calc(210 / 1440 * 100%);
   aspect-ratio: 201 / 107;
-  left: calc(1014 / 1440 * 100%);
+  left: calc(1069 / 1440 * 100%);
 }
 
 .active-cup-slot img,

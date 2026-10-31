@@ -27,14 +27,18 @@ const customerStyles = `
 .customer-btn {
   position: absolute;
   left: calc(66 / 1440 * 100%);
-  bottom: calc((1024 - 637) / 1024 * 100%);
+  bottom: calc((1024 - 630) / 1024 * 100%);
   width: calc(330 / 1440 * 100%);
+  height: calc(420 / 1024 * 100%);
+  overflow: hidden;
   z-index: 8;
   padding: 0;
   margin: 0;
   background: transparent;
   border: none;
   outline: none;
+  pointer-events: none;
+  user-select: none;
   animation: customerArrive 0.25s ease-out;
   transition: filter 0.15s ease;
 }
@@ -43,6 +47,8 @@ const customerStyles = `
   width: 100%;
   height: auto;
   display: block;
+  object-fit: cover;
+  object-position: top center;
   pointer-events: none;
   user-select: none;
 }

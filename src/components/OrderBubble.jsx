@@ -51,32 +51,32 @@ const orderBubbleStyles = `
 
 .order-bubble-number {
   position: absolute;
-  left: 8.5cqw;
-  top: 7cqw;
+  left: 10.5cqw;
+  top: 8.5cqw;
   font-family: 'Fredoka', 'Poppins', sans-serif;
   font-weight: 700;
-  font-size: 5.5cqw;
+  font-size: 5cqw;
   line-height: 1;
   color: #361E10;
 }
 
 .order-bubble-items {
   position: absolute;
-  left: 8cqw;
-  right: 8cqw;
-  top: 13cqw;
-  height: 34.5cqw;
+  left: 11cqw;
+  right: 11cqw;
+  top: 14.5cqw;
+  height: 33cqw;
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   align-content: center;
-  gap: 3cqw;
+  gap: 2.2cqw;
 }
 
 /* Each icon SVG already includes its own tile and border. */
 .order-item {
   position: relative;
-    width: 15.5cqw;
+  width: 14cqw;
   flex-shrink: 0;
 }
 
@@ -129,10 +129,10 @@ const orderBubbleStyles = `
 
 .order-badge {
   position: absolute;
-  right: -2cqw;
-  bottom: -2cqw;
-  width: 7cqw;
-  height: 7cqw;
+  right: -1.2cqw;
+  bottom: -1.2cqw;
+  width: 6.2cqw;
+  height: 6.2cqw;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -141,22 +141,23 @@ const orderBubbleStyles = `
   color: #FFFFFF;
   font-family: 'Fredoka', 'Poppins', sans-serif;
   font-weight: 700;
-  font-size: 4.4cqw;
+  font-size: 3.8cqw;
   line-height: 1;
 }
 
 .order-badge.is-check {
   background: #4E8F2F;
 }
+
 .order-bubble-timer {
   position: absolute;
-  left: 10cqw;
-  right: 10cqw;
-  top: 50cqw;
-  height: 5cqw;
+  left: 11cqw;
+  right: 11cqw;
+  top: 49.5cqw;
+  height: 4.8cqw;
   display: flex;
   align-items: center;
-  gap: 2.5cqw;
+  gap: 1.6cqw;
 }
 
 .order-timer-track {
@@ -176,14 +177,15 @@ const orderBubbleStyles = `
 }
 
 .order-timer-text {
-  min-width: 9cqw;
-  text-align: right;
+  flex-shrink: 0;
   font-family: 'Fredoka', 'Poppins', sans-serif;
   font-weight: 700;
-  font-size: 4.4cqw;
+  font-size: 4.2cqw;
   line-height: 1;
   color: #361E10;
-}`;
+  white-space: nowrap;
+}
+`;
 
 // Turns the customer's recipe into a list of tiles for the bubble.
 // "isDone" is worked out from what the player has served so far.

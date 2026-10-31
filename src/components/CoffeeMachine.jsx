@@ -16,7 +16,7 @@ import {
 const styles = `
 .coffee-machine {
   position: absolute;
-  left: calc(745 / 1440 * 100%);
+  left: calc(800 / 1440 * 100%);
   top: calc(45 / 1024 * 100%);
   width: calc(517 / 1440 * 100%);
   aspect-ratio: 517 / 641;

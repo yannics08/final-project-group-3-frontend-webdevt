@@ -92,9 +92,9 @@ function GamePlay({ onRestartRun }) {
   const [isFinishing, setIsFinishing] = useState(false); // finishing, leaving or restarting
   const [finishResult, setFinishResult] = useState(null);
   const [finishError, setFinishError] = useState('');
-  const [lastServe, setLastServe] = useState(null);
+  const [, setLastServe] = useState(null);
   const [sessionStats, setSessionStats] = useState(null);
-  const [serveMessage, setServeMessage] = useState('');
+  const [, setServeMessage] = useState('');
 
   // One customer at a time.
   const [customer, setCustomer] = useState(() => pickNextCustomer(0, config, recipes));
@@ -354,66 +354,6 @@ function GamePlay({ onRestartRun }) {
           onClick={handleServe}
           disabled={isSubmitting || isFinishing || isOver || !order.cupCode}
         />
-
-        {/* TEMPORARY test panel. Delete it when you no longer need it. */}
-        <div
-          style={{
-            position: 'absolute',
-            left: 8,
-            bottom: 8,
-            zIndex: 100,
-            background: 'rgba(255,255,255,0.92)',
-            color: '#000000',
-            padding: 8,
-            fontSize: 12,
-            fontFamily: 'monospace',
-            maxWidth: 360,
-          }}
-        >
-          <div>
-            Clock: played {Math.round(playedSeconds)}s | paused {Math.round(pausedSeconds)}s
-          </div>
-          <div>
-            Customer: {customer.customerType} {customer.customerVariant} | trace:{' '}
-            {customer.traceRequired ? customer.traceDesign : 'none'}
-          </div>
-          <div>
-            Target: {customer.recipe.cup}, {customer.recipe.temperature},{' '}
-            {customer.recipe.ingredients.join(', ')}
-          </div>
-          <div>
-            Served: {servedNow.selectedCup}, {servedNow.selectedTemperature},{' '}
-            {servedNow.selectedIngredients.join(', ')}
-          </div>
-          <div>
-            Mistakes: {localResult.mistakeCount} | Combined: {localResult.combinedAccuracy}%
-          </div>
-
-          {serveMessage && <div style={{ color: '#B00020' }}>{serveMessage}</div>}
-
-          {lastServe && (
-            <div style={{ marginTop: 6 }}>
-              <div>
-                Server: {lastServe.server.satisfied ? 'SATISFIED' : 'DISSATISFIED'} | points{' '}
-                {lastServe.server.pointsEarned} | patience {lastServe.server.patienceRemaining}
-              </div>
-              <div>
-                Needed {lastServe.server.requiredAccuracy}% | got {lastServe.server.combinedAccuracy}%
-                {lastServe.localCombined !== null && (
-                  <> (local estimate {lastServe.localCombined}%)</>
-                )}
-              </div>
-              <div>Mistakes: {lastServe.server.mistakeCount}</div>
-            </div>
-          )}
-
-          {sessionStats && (
-            <div>
-              Score: {sessionStats.runningScore} | completed {sessionStats.ordersCompleted} | failed{' '}
-              {sessionStats.ordersFailed}
-            </div>
-          )}
-        </div>
 
         <button
           type="button"

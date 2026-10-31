@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useOrder } from '../hooks/useOrder';
 import {
   evaluateOrderLocally,
   submitOrder,
   buildOrderPayload,
+  pickNextCustomer,
   clearSavedLogin,
 } from '../services/api';
 import CoffeeMachine from '../components/CoffeeMachine';
@@ -12,9 +13,17 @@ import CupShelf from '../components/CupShelf';
 import ActiveCup from '../components/ActiveCup';
 import GamePaused from '../components/GamePaused';
 import LatteDesign from '../components/LatteDesign';
+import Customer from '../components/Customer';
+import OrderBubble from '../components/OrderBubble';
 import pauseSvg from '../assets/pause.svg';
+import ServeButton from '../components/ServeButton';
 import { useGame } from '../context/GameContext';
 import './GameScreen.css';
+
+// Pauses an async function for a moment. "await wait(1500)" waits 1.5 seconds.
+function wait(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
 
 function GameScreen() {
   const { sessionId, config, recipes, reloadRecipes, clearGame } = useGame();
@@ -26,22 +35,19 @@ function GameScreen() {
   const [sessionStats, setSessionStats] = useState(null);
   const [serveMessage, setServeMessage] = useState('');
 
-  // TEMPORARY stand-ins until customers exist (Section 7).
-  const testRecipe = recipes[0];
-  const testTraceDesign = 'swan';
-  const testCustomer = {
-    recipeId: testRecipe ? testRecipe.id : null,
-    recipe: testRecipe,
-    customerType: 'student',
-    customerVariant: 'boy',
-    traceRequired: true,
-    traceDesign: testTraceDesign,
-  };
+  // One customer at a time.
+  const [customer, setCustomer] = useState(() => pickNextCustomer(0, config, recipes));
+  const [mood, setMood] = useState('default');
+  const [orderNumber, setOrderNumber] = useState(1);
+  const gameStartRef = useRef(Date.now());
 
   const handleIngredientClick = (buttonName) => {
+    // Nothing works while a result is being shown.
+    if (isSubmitting) return false;
+
     if (buttonName === 'latte-design') {
-      // One attempt per drink. Ignore the button once the trace is done.
-      if (order.traceScore !== null) return false;
+      // Only for customers who asked for a design, and one attempt per drink.
+      if (!customer.traceRequired || order.traceScore !== null) return false;
       setIsLatteOpen(true);
       return false; // false means no dispense animation
     }
@@ -59,15 +65,16 @@ function GameScreen() {
     return <Navigate to="/" replace />;
   }
 
-  // TEMPORARY: a local estimate, so we can compare it with the server.
+  // What the player has made so far, and a local estimate of the result.
   const servedNow = order.getServedItems();
-  const testResult = evaluateOrderLocally(testCustomer, {
+  const localResult = evaluateOrderLocally(customer, {
     ...servedNow,
-    traceShown: true,
+    traceShown: customer.traceRequired,
     traceScore: order.traceScore ?? 0,
     patienceRemaining: 100,
   });
 
+  // Runs when the player clicks the customer.
   async function handleServe() {
     // Never send two requests at once (rule 10 of the API).
     if (isSubmitting || !order.cupCode) return;
@@ -76,16 +83,24 @@ function GameScreen() {
     setServeMessage('');
     try {
       const payload = buildOrderPayload(
-        testCustomer,
+        customer,
         servedNow,
         order.traceScore,
-        100 // stand-in patience, the real timer comes in Section 9
+        100 // stand-in patience, the real timer comes in Section 8
       );
       const data = await submitOrder(sessionId, payload);
 
-      setLastServe({ server: data.result, localCombined: testResult.combinedAccuracy });
+      setLastServe({ server: data.result, localCombined: localResult.combinedAccuracy });
       setSessionStats(data.session);
       order.resetOrder();
+      setMood(data.result.satisfied ? 'happy' : 'mad');
+
+      // Let the player see the reaction, then the next customer arrives.
+      await wait(1500);
+      const secondsPlayed = (Date.now() - gameStartRef.current) / 1000;
+      setCustomer(pickNextCustomer(secondsPlayed, config, recipes));
+      setMood('default');
+      setOrderNumber((previous) => previous + 1);
     } catch (error) {
       if (error.status === 401 || error.status === 403) {
         // Login expired or banned: forget everything. With no session,
@@ -106,69 +121,79 @@ function GameScreen() {
   return (
     <div className="gameplay-container">
       <main className="gameplay-screen" aria-label="Mad Coffee Gameplay Screen">
-        {testRecipe && (
-          <div
-            style={{
-              position: 'absolute',
-              left: 8,
-              top: 8,
-              zIndex: 100,
-              background: 'rgba(255,255,255,0.92)',
-              color: '#000000',
-              padding: 8,
-              fontSize: 12,
-              fontFamily: 'monospace',
-              maxWidth: 360,
-            }}
-          >
-            <div>
-              Target: {testRecipe.cup}, {testRecipe.temperature}, {testRecipe.ingredients.join(', ')}
-            </div>
-            <div>
-              Served: {servedNow.selectedCup}, {servedNow.selectedTemperature},{' '}
-              {servedNow.selectedIngredients.join(', ')}
-            </div>
-            <div>
-              Mistakes: {testResult.mistakeCount} | Accuracy: {testResult.ingredientAccuracy}%
-            </div>
-            <div>
-              Trace ({testTraceDesign}): {order.traceScore === null ? 'not done' : order.traceScore + '%'} |
-              Combined: {testResult.combinedAccuracy}%
-            </div>
+        <Customer
+          key={customer.id}
+          customerType={customer.customerType}
+          customerVariant={customer.customerVariant}
+          mood={mood}
+        />
 
-            <button
-              type="button"
-              onClick={handleServe}
-              disabled={isSubmitting || !order.cupCode}
-              style={{ marginTop: 6 }}
-            >
-              {isSubmitting ? 'Sending...' : 'Serve (test)'}
-            </button>
+        <OrderBubble
+          customer={customer}
+          servedItems={servedNow}
+          traceScore={order.traceScore}
+          orderNumber={orderNumber}
+        />
+        
+        <ServeButton
+          onClick={handleServe}
+          disabled={isSubmitting || !order.cupCode}
+        />
 
-            {serveMessage && <div style={{ color: '#B00020' }}>{serveMessage}</div>}
-
-            {lastServe && (
-              <div style={{ marginTop: 6 }}>
-                <div>
-                  Server: {lastServe.server.satisfied ? 'SATISFIED' : 'DISSATISFIED'} | points{' '}
-                  {lastServe.server.pointsEarned}
-                </div>
-                <div>
-                  Needed {lastServe.server.requiredAccuracy}% | got {lastServe.server.combinedAccuracy}%
-                  {' '}(local estimate {lastServe.localCombined}%)
-                </div>
-                <div>Mistakes: {lastServe.server.mistakeCount}</div>
-              </div>
-            )}
-
-            {sessionStats && (
-              <div>
-                Score: {sessionStats.runningScore} | completed {sessionStats.ordersCompleted} | failed{' '}
-                {sessionStats.ordersFailed}
-              </div>
-            )}
+        {/* TEMPORARY test panel, moved to the bottom-left corner. */}
+        <div
+          style={{
+            position: 'absolute',
+            left: 8,
+            bottom: 8,
+            zIndex: 100,
+            background: 'rgba(255,255,255,0.92)',
+            color: '#000000',
+            padding: 8,
+            fontSize: 12,
+            fontFamily: 'monospace',
+            maxWidth: 360,
+          }}
+        >
+          <div>
+            Customer: {customer.customerType} {customer.customerVariant} | trace:{' '}
+            {customer.traceRequired ? customer.traceDesign : 'none'}
           </div>
-        )}
+          <div>
+            Target: {customer.recipe.cup}, {customer.recipe.temperature},{' '}
+            {customer.recipe.ingredients.join(', ')}
+          </div>
+          <div>
+            Served: {servedNow.selectedCup}, {servedNow.selectedTemperature},{' '}
+            {servedNow.selectedIngredients.join(', ')}
+          </div>
+          <div>
+            Mistakes: {localResult.mistakeCount} | Combined: {localResult.combinedAccuracy}%
+          </div>
+
+          {serveMessage && <div style={{ color: '#B00020' }}>{serveMessage}</div>}
+
+          {lastServe && (
+            <div style={{ marginTop: 6 }}>
+              <div>
+                Server: {lastServe.server.satisfied ? 'SATISFIED' : 'DISSATISFIED'} | points{' '}
+                {lastServe.server.pointsEarned}
+              </div>
+              <div>
+                Needed {lastServe.server.requiredAccuracy}% | got {lastServe.server.combinedAccuracy}%
+                {' '}(local estimate {lastServe.localCombined}%)
+              </div>
+              <div>Mistakes: {lastServe.server.mistakeCount}</div>
+            </div>
+          )}
+
+          {sessionStats && (
+            <div>
+              Score: {sessionStats.runningScore} | completed {sessionStats.ordersCompleted} | failed{' '}
+              {sessionStats.ordersFailed}
+            </div>
+          )}
+        </div>
 
         <button
           type="button"
@@ -198,7 +223,7 @@ function GameScreen() {
         {isLatteOpen && (
           <LatteDesign
             isOpen={true}
-            lockedDesign={testTraceDesign}
+            lockedDesign={customer.traceDesign}
             onDone={handleLatteDone}
             onCancel={() => setIsLatteOpen(false)}
           />

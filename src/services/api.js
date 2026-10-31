@@ -351,3 +351,25 @@ export function evaluateOrderLocally(customer, orderPayload, config = DEFAULT_GA
     pointsEarned,
   };
 }
+
+// Builds the object that POST /api/sessions/:id/orders expects.
+export function buildOrderPayload(customer, servedItems, traceScore, patienceRemaining) {
+  const payload = {
+    recipeId: customer.recipeId,
+    customerType: customer.customerType,
+    selectedCup: servedItems.selectedCup,
+    selectedTemperature: servedItems.selectedTemperature,
+    selectedIngredients: servedItems.selectedIngredients,
+    traceShown: customer.traceRequired,
+    traceScore: customer.traceRequired ? (traceScore ?? 0) : 0,
+    traceDesign: customer.traceRequired ? customer.traceDesign : null,
+    patienceRemaining: Math.round(patienceRemaining),
+  };
+
+  // Karen has no variant, and the server refuses one for her.
+  if (customer.customerType !== 'karen') {
+    payload.customerVariant = customer.customerVariant;
+  }
+
+  return payload;
+}

@@ -1,5 +1,5 @@
 import { createContext, useContext, useState } from 'react';
-import { startSession } from '../services/api';
+import { startSession, getRecipes } from '../services/api';
 
 // Step 1: create the Context. It starts as null.
 const GameContext = createContext(null);
@@ -25,12 +25,18 @@ export function GameProvider({ children }) {
     setRecipes([]);
   }
 
+  async function reloadRecipes() {
+    const data = await getRecipes();
+    setRecipes(data.recipes);
+  }
+
   const value = {
     sessionId: sessionId,
     config: config,
     recipes: recipes,
     startGame: startGame,
     clearGame: clearGame,
+    reloadRecipes: reloadRecipes,
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

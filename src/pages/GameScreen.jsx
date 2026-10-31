@@ -1,73 +1,42 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, useLocation, Navigate } from 'react-router-dom'; // NEW: Navigate
+import { useState } from 'react';
+import { Navigate } from 'react-router-dom';
 import { useOrder } from '../hooks/useOrder';
-import { evaluateOrderLocally } from '../services/api';
+import {
+  evaluateOrderLocally,
+  submitOrder,
+  buildOrderPayload,
+  clearSavedLogin,
+} from '../services/api';
 import CoffeeMachine from '../components/CoffeeMachine';
 import CupShelf from '../components/CupShelf';
 import ActiveCup from '../components/ActiveCup';
 import GamePaused from '../components/GamePaused';
 import LatteDesign from '../components/LatteDesign';
 import pauseSvg from '../assets/pause.svg';
-import { useGame } from '../context/GameContext'; // NEW  
+import { useGame } from '../context/GameContext';
 import './GameScreen.css';
 
-const USERS_STORAGE_KEY = 'madcoffee_users';
-const CURRENT_USER_STORAGE_KEY = 'madcoffee_current_user';
-
-function recordCompletedGame(earnedPoints = 0) {
-  try {
-    const rawCurrent = localStorage.getItem(CURRENT_USER_STORAGE_KEY);
-    if (!rawCurrent) return;
-    const current = JSON.parse(rawCurrent);
-    if (!current?.username) return;
-
-    const rawUsers = localStorage.getItem(USERS_STORAGE_KEY);
-    const users = rawUsers ? JSON.parse(rawUsers) : [];
-    let updatedCurrent = {
-      ...current,
-      day: (current.day ?? 0) + 1,
-      points: (current.points ?? 0) + earnedPoints,
-    };
-
-    const updatedUsers = users.map((u) => {
-      if (u.username.toLowerCase() === current.username.toLowerCase()) {
-        const nextDay = (u.day ?? 0) + 1;
-        const nextPoints = (u.points ?? 0) + earnedPoints;
-        updatedCurrent = { ...updatedCurrent, day: nextDay, points: nextPoints };
-        return { ...u, day: nextDay, points: nextPoints };
-      }
-      return u;
-    });
-
-    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(updatedUsers));
-    localStorage.setItem(CURRENT_USER_STORAGE_KEY, JSON.stringify(updatedCurrent));
-  } catch {
-    return;
-  }
-}
-
 function GameScreen() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { sessionId, config, recipes } = useGame();
+  const { sessionId, config, recipes, reloadRecipes, clearGame } = useGame();
   const order = useOrder(config);
   const [isPaused, setIsPaused] = useState(false);
   const [isLatteOpen, setIsLatteOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [lastServe, setLastServe] = useState(null);
+  const [sessionStats, setSessionStats] = useState(null);
+  const [serveMessage, setServeMessage] = useState('');
 
   // TEMPORARY stand-ins until customers exist (Section 7).
   const testRecipe = recipes[0];
   const testTraceDesign = 'swan';
-
-  useEffect(() => {
-    if (location.state?.latteResult) {
-      const earnedPoints = location.state.latteResult.matchPercent ?? 0;
-      recordCompletedGame(earnedPoints);
-      navigate(location.pathname, {
-        replace: true,
-        state: { selectedCup: location.state?.selectedCup ?? null },
-      });
-    }
-  }, [location.pathname, location.state, navigate]);
+  const testCustomer = {
+    recipeId: testRecipe ? testRecipe.id : null,
+    recipe: testRecipe,
+    customerType: 'student',
+    customerVariant: 'boy',
+    traceRequired: true,
+    traceDesign: testTraceDesign,
+  };
 
   const handleIngredientClick = (buttonName) => {
     if (buttonName === 'latte-design') {
@@ -83,14 +52,15 @@ function GameScreen() {
     order.saveTrace(result.design, result.matchPercent);
     setIsLatteOpen(false);
   };
-  
+
+  // No session means the page was refreshed or /game was opened directly.
+  // This must stay BELOW every hook above.
   if (!sessionId) {
     return <Navigate to="/" replace />;
   }
 
-  // TEMPORARY: a stand-in order so we can test the rules.
+  // TEMPORARY: a local estimate, so we can compare it with the server.
   const servedNow = order.getServedItems();
-  const testCustomer = { recipe: testRecipe, customerType: 'student', traceRequired: true };
   const testResult = evaluateOrderLocally(testCustomer, {
     ...servedNow,
     traceShown: true,
@@ -98,40 +68,108 @@ function GameScreen() {
     patienceRemaining: 100,
   });
 
+  async function handleServe() {
+    // Never send two requests at once (rule 10 of the API).
+    if (isSubmitting || !order.cupCode) return;
+
+    setIsSubmitting(true);
+    setServeMessage('');
+    try {
+      const payload = buildOrderPayload(
+        testCustomer,
+        servedNow,
+        order.traceScore,
+        100 // stand-in patience, the real timer comes in Section 9
+      );
+      const data = await submitOrder(sessionId, payload);
+
+      setLastServe({ server: data.result, localCombined: testResult.combinedAccuracy });
+      setSessionStats(data.session);
+      order.resetOrder();
+    } catch (error) {
+      if (error.status === 401 || error.status === 403) {
+        // Login expired or banned: forget everything. With no session,
+        // the guard above sends the player to the home page.
+        clearSavedLogin();
+        clearGame();
+      } else if (error.code === 'RECIPE_NOT_FOUND') {
+        reloadRecipes().catch(() => {});
+        setServeMessage('The recipe list was out of date and has been reloaded. Please serve again.');
+      } else {
+        setServeMessage(error.message);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   return (
     <div className="gameplay-container">
       <main className="gameplay-screen" aria-label="Mad Coffee Gameplay Screen">
-      {testRecipe && (
-        <div
-          style={{
-            position: 'absolute',
-            left: 8,
-            top: 8,
-            zIndex: 100,
-            background: 'rgba(255,255,255,0.92)',
-            color: '#000000',
-            padding: 8,
-            fontSize: 12,
-            fontFamily: 'monospace',
-            maxWidth: 360,
-          }}
-        >
-          <div>
-            Target: {testRecipe.cup}, {testRecipe.temperature}, {testRecipe.ingredients.join(', ')}
+        {testRecipe && (
+          <div
+            style={{
+              position: 'absolute',
+              left: 8,
+              top: 8,
+              zIndex: 100,
+              background: 'rgba(255,255,255,0.92)',
+              color: '#000000',
+              padding: 8,
+              fontSize: 12,
+              fontFamily: 'monospace',
+              maxWidth: 360,
+            }}
+          >
+            <div>
+              Target: {testRecipe.cup}, {testRecipe.temperature}, {testRecipe.ingredients.join(', ')}
+            </div>
+            <div>
+              Served: {servedNow.selectedCup}, {servedNow.selectedTemperature},{' '}
+              {servedNow.selectedIngredients.join(', ')}
+            </div>
+            <div>
+              Mistakes: {testResult.mistakeCount} | Accuracy: {testResult.ingredientAccuracy}%
+            </div>
+            <div>
+              Trace ({testTraceDesign}): {order.traceScore === null ? 'not done' : order.traceScore + '%'} |
+              Combined: {testResult.combinedAccuracy}%
+            </div>
+
+            <button
+              type="button"
+              onClick={handleServe}
+              disabled={isSubmitting || !order.cupCode}
+              style={{ marginTop: 6 }}
+            >
+              {isSubmitting ? 'Sending...' : 'Serve (test)'}
+            </button>
+
+            {serveMessage && <div style={{ color: '#B00020' }}>{serveMessage}</div>}
+
+            {lastServe && (
+              <div style={{ marginTop: 6 }}>
+                <div>
+                  Server: {lastServe.server.satisfied ? 'SATISFIED' : 'DISSATISFIED'} | points{' '}
+                  {lastServe.server.pointsEarned}
+                </div>
+                <div>
+                  Needed {lastServe.server.requiredAccuracy}% | got {lastServe.server.combinedAccuracy}%
+                  {' '}(local estimate {lastServe.localCombined}%)
+                </div>
+                <div>Mistakes: {lastServe.server.mistakeCount}</div>
+              </div>
+            )}
+
+            {sessionStats && (
+              <div>
+                Score: {sessionStats.runningScore} | completed {sessionStats.ordersCompleted} | failed{' '}
+                {sessionStats.ordersFailed}
+              </div>
+            )}
           </div>
-          <div>
-            Served: {servedNow.selectedCup}, {servedNow.selectedTemperature},{' '}
-            {servedNow.selectedIngredients.join(', ')}
-          </div>
-          <div>
-            Mistakes: {testResult.mistakeCount} | Accuracy: {testResult.ingredientAccuracy}%
-          </div>
-          <div>
-            Trace ({testTraceDesign}): {order.traceScore === null ? 'not done' : order.traceScore + '%'} |
-            Combined: {testResult.combinedAccuracy}%
-          </div>
-        </div>
-      )}
+        )}
+
         <button
           type="button"
           className="gameplay-pause-btn"

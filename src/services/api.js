@@ -373,3 +373,30 @@ export function buildOrderPayload(customer, servedItems, traceScore, patienceRem
 
   return payload;
 }
+
+// ----- Admin endpoints -----
+
+export function getAdminUsers(search, limit) {
+  let path = '/api/admin/users?limit=' + limit;
+  if (search) {
+    // encodeURIComponent makes special characters safe inside a URL.
+    path = path + '&search=' + encodeURIComponent(search);
+  }
+  return callApi(path);
+}
+
+export function resetDisplayName(userId) {
+  return callApi('/api/admin/users/' + userId + '/reset-displayname', 'PATCH');
+}
+
+export function banUser(userId) {
+  return callApi('/api/admin/users/' + userId + '/ban', 'PATCH');
+}
+
+export function unbanUser(userId) {
+  return callApi('/api/admin/users/' + userId + '/unban', 'PATCH');
+}
+
+export function deleteUser(userId) {
+  return callApi('/api/admin/users/' + userId, 'DELETE');
+}

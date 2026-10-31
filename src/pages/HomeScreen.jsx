@@ -271,7 +271,6 @@ function HomeScreen() {
             onClose={() => setAuthMode(null)}
             onSwitchMode={(mode) => setAuthMode(mode)}
             onSuccess={handleAuthSuccess}
-            onAccountDeleted={() => setNotice('deleted')}
           />
         )}
         {activeOverlay === 'dashboard' && (

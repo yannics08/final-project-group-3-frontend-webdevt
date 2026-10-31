@@ -4,8 +4,6 @@ import showPasswordSvg from '../assets/show password.svg';
 import hidePasswordSvg from '../assets/hide password.svg';
 import { callApi, saveLogin } from '../services/api';
 
-const USERS_STORAGE_KEY = 'madcoffee_users';
-
 const authModalStyles = `
 @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700;800&family=Lilita+One&family=Nunito:wght@600;700;800&display=swap');
 
@@ -272,22 +270,7 @@ const authModalStyles = `
 }
 `;
 
-function readLocalAccount(name) {
-  try {
-    const raw = localStorage.getItem(USERS_STORAGE_KEY);
-    const users = raw ? JSON.parse(raw) : [];
-    const n = name.toLowerCase();
-    return (
-      users.find((u) => u.username?.toLowerCase() === n) ||
-      users.find((u) => u.resetFrom?.toLowerCase() === n) ||
-      null
-    );
-  } catch {
-    return null;
-  }
-}
-
-function AuthModal({ mode = 'login', onClose, onSwitchMode, onSuccess, onAccountDeleted }) {
+function AuthModal({ mode = 'login', onClose, onSwitchMode, onSuccess}) {
   const [internalMode, setInternalMode] = useState(mode);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -352,23 +335,11 @@ function AuthModal({ mode = 'login', onClose, onSwitchMode, onSuccess, onAccount
         password: password,
       });
 
-      // Account notices (deleted / name reset) are flagged locally by the admin tools.
-      const localAccount = isLogin ? readLocalAccount(trimmedUsername) : null;
-      if (localAccount?.deleted) {
-        if (onAccountDeleted) {
-          onAccountDeleted();
-        }
-        onClose();
-        return;
-      }
-
-      const sessionUser = {
-        ...data.user,
-        nameResetPending: Boolean(localAccount?.nameResetPending),
-      };
-      saveLogin(data.token, sessionUser);
+       // The server already sends everything we need (role, displayName,
+      // nameResetPending, settings), so we save the user exactly as received.
+      saveLogin(data.token, data.user);
       if (onSuccess) {
-        onSuccess(sessionUser);
+        onSuccess(data.user);
       }
       onClose();
     } catch (error) {

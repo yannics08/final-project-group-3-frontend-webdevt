@@ -396,12 +396,16 @@ function buildPolylinePoints(stroke) {
   return stroke.map((pt) => `${pt.x.toFixed(1)},${pt.y.toFixed(1)}`).join(' ');
 }
 
-function LatteDesign({ isOpen = true, onDone, onServe, onCancel, initialDesignIndex = 0 }) {
+function LatteDesign({ isOpen = true, onDone, onServe, onCancel, initialDesignIndex = 0, lockedDesign = null }) {
   const navigate = useNavigate();
   const location = useLocation();
   const isStandaloneScreen = location.pathname === '/latte-design' && !onDone && !onServe && !onCancel;
 
-  const [designIndex, setDesignIndex] = useState(initialDesignIndex);
+  // If a design is locked, start on it. Otherwise use the start index.
+  const lockedIndex = LATTE_DESIGNS.findIndex((design) => design.id === lockedDesign);
+  const [designIndex, setDesignIndex] = useState(
+    lockedIndex >= 0 ? lockedIndex : initialDesignIndex
+  );
   const [strokes, setStrokes] = useState([]);
   const [isDrawing, setIsDrawing] = useState(false);
   const [targetPoints, setTargetPoints] = useState([]);
@@ -529,6 +533,7 @@ function LatteDesign({ isOpen = true, onDone, onServe, onCancel, initialDesignIn
   };
 
   const handleCycleDesign = () => {
+    if (lockedDesign) return; // the customer asked for this design  
     setStrokes([]);
     setDesignIndex((prev) => (prev + 1) % LATTE_DESIGNS.length);
   };
@@ -662,7 +667,8 @@ function LatteDesign({ isOpen = true, onDone, onServe, onCancel, initialDesignIn
           type="button"
           className="latte-preview-btn"
           onClick={handleCycleDesign}
-          title="Click to switch latte art design"
+          title={lockedDesign ? 'This is the design the customer asked for' : 'Click to switch latte art design'}
+          style={lockedDesign ? { cursor: 'default' } : undefined}
           aria-label={`Expected Design: ${currentDesign.name}. Click to switch design`}
         >
           <img
@@ -720,7 +726,6 @@ function LatteDesign({ isOpen = true, onDone, onServe, onCancel, initialDesignIn
       />
     </main>
   );
-
   return (
     <>
       <style>{latteDesignStyles}</style>
@@ -733,4 +738,6 @@ function LatteDesign({ isOpen = true, onDone, onServe, onCancel, initialDesignIn
   );
 }
 
+
 export default LatteDesign;
+

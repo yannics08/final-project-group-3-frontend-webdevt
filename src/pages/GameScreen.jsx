@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Navigate } from 'react-router-dom'; // NEW: Navigate
+import { useOrder } from '../hooks/useOrder';
+import { evaluateOrderLocally } from '../services/api';
 import CoffeeMachine from '../components/CoffeeMachine';
 import CupShelf from '../components/CupShelf';
 import ActiveCup from '../components/ActiveCup';
 import GamePaused from '../components/GamePaused';
+import LatteDesign from '../components/LatteDesign';
 import pauseSvg from '../assets/pause.svg';
-import { useGame } from '../context/GameContext'; // NEW
+import { useGame } from '../context/GameContext'; // NEW  
 import './GameScreen.css';
 
 const USERS_STORAGE_KEY = 'madcoffee_users';
@@ -46,11 +49,14 @@ function recordCompletedGame(earnedPoints = 0) {
 function GameScreen() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { sessionId, recipes } = useGame(); // NEW
-  const [selectedCup, setSelectedCup] = useState(
-    () => location.state?.selectedCup ?? null
-  );
+  const { sessionId, config, recipes } = useGame();
+  const order = useOrder(config);
   const [isPaused, setIsPaused] = useState(false);
+  const [isLatteOpen, setIsLatteOpen] = useState(false);
+
+  // TEMPORARY stand-ins until customers exist (Section 7).
+  const testRecipe = recipes[0];
+  const testTraceDesign = 'swan';
 
   useEffect(() => {
     if (location.state?.latteResult) {
@@ -63,23 +69,69 @@ function GameScreen() {
     }
   }, [location.pathname, location.state, navigate]);
 
-  const handleIngredientClick = (ingredient) => {
-    if (ingredient === 'latte-design') {
-      navigate('/latte-design', { state: { selectedCup } });
+  const handleIngredientClick = (buttonName) => {
+    if (buttonName === 'latte-design') {
+      // One attempt per drink. Ignore the button once the trace is done.
+      if (order.traceScore !== null) return false;
+      setIsLatteOpen(true);
+      return false; // false means no dispense animation
     }
+    return order.pressButton(buttonName);
   };
 
-  // NEW: no session means the page was refreshed or /game was opened directly.
-  // This must stay BELOW every hook above (useState, useEffect, useGame).
+  const handleLatteDone = (result) => {
+    order.saveTrace(result.design, result.matchPercent);
+    setIsLatteOpen(false);
+  };
+  
   if (!sessionId) {
     return <Navigate to="/" replace />;
   }
 
-  console.log('Session:', sessionId, 'Recipes:', recipes); // NEW: temporary test line
+  // TEMPORARY: a stand-in order so we can test the rules.
+  const servedNow = order.getServedItems();
+  const testCustomer = { recipe: testRecipe, customerType: 'student', traceRequired: true };
+  const testResult = evaluateOrderLocally(testCustomer, {
+    ...servedNow,
+    traceShown: true,
+    traceScore: order.traceScore ?? 0,
+    patienceRemaining: 100,
+  });
 
   return (
     <div className="gameplay-container">
       <main className="gameplay-screen" aria-label="Mad Coffee Gameplay Screen">
+      {testRecipe && (
+        <div
+          style={{
+            position: 'absolute',
+            left: 8,
+            top: 8,
+            zIndex: 100,
+            background: 'rgba(255,255,255,0.92)',
+            color: '#000000',
+            padding: 8,
+            fontSize: 12,
+            fontFamily: 'monospace',
+            maxWidth: 360,
+          }}
+        >
+          <div>
+            Target: {testRecipe.cup}, {testRecipe.temperature}, {testRecipe.ingredients.join(', ')}
+          </div>
+          <div>
+            Served: {servedNow.selectedCup}, {servedNow.selectedTemperature},{' '}
+            {servedNow.selectedIngredients.join(', ')}
+          </div>
+          <div>
+            Mistakes: {testResult.mistakeCount} | Accuracy: {testResult.ingredientAccuracy}%
+          </div>
+          <div>
+            Trace ({testTraceDesign}): {order.traceScore === null ? 'not done' : order.traceScore + '%'} |
+            Combined: {testResult.combinedAccuracy}%
+          </div>
+        </div>
+      )}
         <button
           type="button"
           className="gameplay-pause-btn"
@@ -91,19 +143,28 @@ function GameScreen() {
         </button>
 
         <CoffeeMachine
-          selectedCup={selectedCup}
+          selectedCup={order.cupCode}
           onIngredientClick={handleIngredientClick}
         />
-        <ActiveCup cupType={selectedCup} />
-        <CupShelf onSelectCup={setSelectedCup} />
+        <ActiveCup cupType={order.cupCode} />
+        <CupShelf onSelectCup={order.chooseCup} />
 
         <GamePaused
           isOpen={isPaused}
           onContinue={() => setIsPaused(false)}
           onRestart={() => {
-            setSelectedCup(null);
+            order.resetOrder();
           }}
         />
+
+        {isLatteOpen && (
+          <LatteDesign
+            isOpen={true}
+            lockedDesign={testTraceDesign}
+            onDone={handleLatteDone}
+            onCancel={() => setIsLatteOpen(false)}
+          />
+        )}
       </main>
     </div>
   );

@@ -1,19 +1,19 @@
-import bubbleBackground from '../assets/order bubble.svg';
-import hotIcon from '../assets/hot order.svg';
-import coldIcon from '../assets/cold order.svg';
-import latteIcon from '../assets/latte design order.svg';
-import coffeeBeanIcon from '../assets/coffee bean order.svg';
-import creamIcon from '../assets/cream order.svg';
-import sugarIcon from '../assets/sugar order.svg';
-import milkIcon from '../assets/milk order.svg';
-import iceIcon from '../assets/ice order.svg';
-import smallCupSvg from '../assets/small cup.svg';
-import mediumCupSvg from '../assets/medium cup.svg';
-import largeCupSvg from '../assets/large cup.svg';
-import teacupSvg from '../assets/teacup.svg';
+import bubbleBackground from "../assets/order bubble.svg";
+import hotIcon from "../assets/hot order.svg";
+import coldIcon from "../assets/cold order.svg";
+import latteIcon from "../assets/latte design order.svg";
+import coffeeBeanIcon from "../assets/coffee bean order.svg";
+import creamIcon from "../assets/cream order.svg";
+import sugarIcon from "../assets/sugar order.svg";
+import milkIcon from "../assets/milk order.svg";
+import iceIcon from "../assets/ice order.svg";
+import smallCupSvg from "../assets/small cup.svg";
+import mediumCupSvg from "../assets/medium cup.svg";
+import largeCupSvg from "../assets/large cup.svg";
+import teacupSvg from "../assets/teacup.svg";
 
 const INGREDIENT_ICONS = {
-  'coffee-bean': coffeeBeanIcon,
+  "coffee-bean": coffeeBeanIcon,
   cream: creamIcon,
   milk: milkIcon,
   sugar: sugarIcon,
@@ -64,19 +64,19 @@ const orderBubbleStyles = `
   position: absolute;
   left: 8cqw;
   right: 8cqw;
-  top: 12cqw;
-  height: 41cqw;
+  top: 13cqw;
+  height: 34.5cqw;
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   align-content: center;
-  gap: 3.5cqw;
+  gap: 3cqw;
 }
 
 /* Each icon SVG already includes its own tile and border. */
 .order-item {
   position: relative;
-  width: 17.7cqw;
+    width: 15.5cqw;
   flex-shrink: 0;
 }
 
@@ -148,7 +148,42 @@ const orderBubbleStyles = `
 .order-badge.is-check {
   background: #4E8F2F;
 }
-`;
+.order-bubble-timer {
+  position: absolute;
+  left: 10cqw;
+  right: 10cqw;
+  top: 50cqw;
+  height: 5cqw;
+  display: flex;
+  align-items: center;
+  gap: 2.5cqw;
+}
+
+.order-timer-track {
+  box-sizing: border-box;
+  flex: 1;
+  height: 100%;
+  background: #361E10;
+  border: 0.8cqw solid #361E10;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.order-timer-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.2s linear, background-color 0.3s ease;
+}
+
+.order-timer-text {
+  min-width: 9cqw;
+  text-align: right;
+  font-family: 'Fredoka', 'Poppins', sans-serif;
+  font-weight: 700;
+  font-size: 4.4cqw;
+  line-height: 1;
+  color: #361E10;
+}`;
 
 // Turns the customer's recipe into a list of tiles for the bubble.
 // "isDone" is worked out from what the player has served so far.
@@ -158,7 +193,7 @@ function buildItems(customer, servedItems, traceScore) {
 
   // Cup (delete this block to hide the cup tile)
   items.push({
-    key: 'cup',
+    key: "cup",
     icon: CUP_ICONS[recipe.cup],
     quantity: 1,
     isCup: true,
@@ -167,8 +202,8 @@ function buildItems(customer, servedItems, traceScore) {
 
   // Temperature
   items.push({
-    key: 'temperature',
-    icon: recipe.temperature === 'hot' ? hotIcon : coldIcon,
+    key: "temperature",
+    icon: recipe.temperature === "hot" ? hotIcon : coldIcon,
     quantity: 1,
     isDone: servedItems.selectedTemperature === recipe.temperature,
   });
@@ -197,7 +232,7 @@ function buildItems(customer, servedItems, traceScore) {
   // Latte design, only for customers who asked for one.
   if (customer.traceRequired) {
     items.push({
-      key: 'latte',
+      key: "latte",
       icon: latteIcon,
       quantity: 1,
       isDone: traceScore !== null,
@@ -207,45 +242,74 @@ function buildItems(customer, servedItems, traceScore) {
   return items;
 }
 
-function OrderBubble({ customer, servedItems, traceScore, orderNumber }) {
+// Green while there is plenty of time, then yellow, then red.
+function getPatienceColor(patience) {
+  if (patience > 50) return "#7FA832";
+  if (patience > 25) return "#E0A93B";
+  return "#C0392B";
+}
+
+function OrderBubble({
+  customer,
+  servedItems,
+  traceScore,
+  orderNumber,
+  patience,
+  secondsLeft,
+}) {
   const items = buildItems(customer, servedItems, traceScore);
 
   return (
     <>
       <style>{orderBubbleStyles}</style>
 
-      <div className="order-bubble" aria-label={'Order number ' + orderNumber}>
-        <img className="order-bubble-bg" src={bubbleBackground} alt="" draggable="false" />
-
+      <div className="order-bubble" aria-label={"Order number " + orderNumber}>
+        <img
+          className="order-bubble-bg"
+          src={bubbleBackground}
+          alt=""
+          draggable="false"
+        />
         <div className="order-bubble-number">Order #{orderNumber}</div>
-
         <div className="order-bubble-items">
-{items.map((item) => {
-  let className = 'order-item';
-  if (item.isCup) className += ' is-cup';
-  if (item.isDone) className += ' is-done';
+          {items.map((item) => {
+            let className = "order-item";
+            if (item.isCup) className += " is-cup";
+            if (item.isDone) className += " is-done";
 
-  return (
-    <div key={item.key} className={className}>
-      <img src={item.icon} alt="" draggable="false" />
-        {/* Green tint, only for icons that bring their own tile. */}
-        {!item.isCup && (
-            <span
-            className="order-item-tint"
-            style={{
-                maskImage: 'url("' + item.icon + '")',
-                WebkitMaskImage: 'url("' + item.icon + '")',
-            }}
-            />
-        )}
+            return (
+              <div key={item.key} className={className}>
+                <img src={item.icon} alt="" draggable="false" />
+                {/* Green tint, only for icons that bring their own tile. */}
+                {!item.isCup && (
+                  <span
+                    className="order-item-tint"
+                    style={{
+                      maskImage: 'url("' + item.icon + '")',
+                      WebkitMaskImage: 'url("' + item.icon + '")',
+                    }}
+                  />
+                )}
 
-        {item.isDone && <span className="order-badge is-check">✓</span>}
-        {!item.isDone && item.quantity > 1 && (
-            <span className="order-badge">{item.quantity}</span>
-        )}
+                {item.isDone && <span className="order-badge is-check">✓</span>}
+                {!item.isDone && item.quantity > 1 && (
+                  <span className="order-badge">{item.quantity}</span>
+                )}
+              </div>
+            );
+          })}
         </div>
-    );
-    })}
+        <div className="order-bubble-timer">
+          <div className="order-timer-track">
+            <div
+              className="order-timer-fill"
+              style={{
+                width: patience + "%",
+                background: getPatienceColor(patience),
+              }}
+            />
+          </div>
+          <span className="order-timer-text">{secondsLeft}s</span>
         </div>
       </div>
     </>

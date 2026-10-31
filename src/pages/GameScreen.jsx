@@ -1,6 +1,7 @@
-import { useState, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useOrder } from '../hooks/useOrder';
+import { usePatience } from '../hooks/usePatience';
 import {
   evaluateOrderLocally,
   submitOrder,
@@ -15,10 +16,20 @@ import GamePaused from '../components/GamePaused';
 import LatteDesign from '../components/LatteDesign';
 import Customer from '../components/Customer';
 import OrderBubble from '../components/OrderBubble';
-import pauseSvg from '../assets/pause.svg';
 import ServeButton from '../components/ServeButton';
+import pauseSvg from '../assets/pause.svg';
 import { useGame } from '../context/GameContext';
 import './GameScreen.css';
+
+// A customer who leaves is sent with an empty drink.
+const EMPTY_DRINK = {
+  selectedCup: null,
+  selectedTemperature: null,
+  selectedIngredients: [],
+};
+
+// The customer looks angry when patience is this low or lower.
+const LOW_PATIENCE = 30;
 
 // Pauses an async function for a moment. "await wait(1500)" waits 1.5 seconds.
 function wait(milliseconds) {
@@ -40,6 +51,21 @@ function GameScreen() {
   const [mood, setMood] = useState('default');
   const [orderNumber, setOrderNumber] = useState(1);
   const gameStartRef = useRef(Date.now());
+
+  // The patience timer stops while paused or while a result is being handled.
+  const { patience, secondsLeft, resetPatience } = usePatience(
+    customer.customerType,
+    !isPaused && !isSubmitting
+  );
+
+  // When patience reaches 0, the customer leaves.
+  useEffect(() => {
+    if (patience <= 0) {
+      handleCustomerLeft();
+    }
+    // The effect should only run when patience changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [patience]);
 
   const handleIngredientClick = (buttonName) => {
     // Nothing works while a result is being shown.
@@ -71,36 +97,43 @@ function GameScreen() {
     ...servedNow,
     traceShown: customer.traceRequired,
     traceScore: order.traceScore ?? 0,
-    patienceRemaining: 100,
+    patienceRemaining: patience,
   });
 
-  // Runs when the player clicks the customer.
-  async function handleServe() {
+  // An angry face when patience is low (unless a result is being shown).
+  const shownMood = mood === 'default' && patience <= LOW_PATIENCE ? 'mad' : mood;
+
+  // Brings in the next customer.
+  function startNextCustomer(recipeList) {
+    const secondsPlayed = (Date.now() - gameStartRef.current) / 1000;
+    setCustomer(pickNextCustomer(secondsPlayed, config, recipeList));
+    setMood('default');
+    setOrderNumber((previous) => previous + 1);
+    resetPatience();
+  }
+
+  // Sends one customer's order to the server. Used for serving AND for leaving.
+  async function finishCustomer(servedItems, traceScore, patienceValue, isLeaving) {
     // Never send two requests at once (rule 10 of the API).
-    if (isSubmitting || !order.cupCode) return;
+    if (isSubmitting) return;
 
     setIsSubmitting(true);
     setServeMessage('');
     try {
-      const payload = buildOrderPayload(
-        customer,
-        servedNow,
-        order.traceScore,
-        100 // stand-in patience, the real timer comes in Section 8
-      );
+      const payload = buildOrderPayload(customer, servedItems, traceScore, patienceValue);
       const data = await submitOrder(sessionId, payload);
 
-      setLastServe({ server: data.result, localCombined: localResult.combinedAccuracy });
+      setLastServe({
+        server: data.result,
+        localCombined: isLeaving ? null : localResult.combinedAccuracy,
+      });
       setSessionStats(data.session);
       order.resetOrder();
       setMood(data.result.satisfied ? 'happy' : 'mad');
 
       // Let the player see the reaction, then the next customer arrives.
       await wait(1500);
-      const secondsPlayed = (Date.now() - gameStartRef.current) / 1000;
-      setCustomer(pickNextCustomer(secondsPlayed, config, recipes));
-      setMood('default');
-      setOrderNumber((previous) => previous + 1);
+      startNextCustomer(recipes);
     } catch (error) {
       if (error.status === 401 || error.status === 403) {
         // Login expired or banned: forget everything. With no session,
@@ -108,14 +141,38 @@ function GameScreen() {
         clearSavedLogin();
         clearGame();
       } else if (error.code === 'RECIPE_NOT_FOUND') {
-        reloadRecipes().catch(() => {});
-        setServeMessage('The recipe list was out of date and has been reloaded. Please serve again.');
+        // The recipe list changed on the server. Reload it and start fresh.
+        try {
+          const freshRecipes = await reloadRecipes();
+          order.resetOrder();
+          startNextCustomer(freshRecipes);
+          setServeMessage('The menu was updated, so a new customer has arrived.');
+        } catch (reloadError) {
+          setServeMessage(reloadError.message);
+        }
       } else {
         setServeMessage(error.message);
+        // A customer who left cannot be retried, so move on to the next one.
+        if (isLeaving) {
+          order.resetOrder();
+          startNextCustomer(recipes);
+        }
       }
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  // The player pressed Serve.
+  function handleServe() {
+    if (!order.cupCode) return;
+    finishCustomer(servedNow, order.traceScore, patience, false);
+  }
+
+  // The customer ran out of patience.
+  function handleCustomerLeft() {
+    setIsLatteOpen(false);
+    finishCustomer(EMPTY_DRINK, null, 0, true);
   }
 
   return (
@@ -125,7 +182,7 @@ function GameScreen() {
           key={customer.id}
           customerType={customer.customerType}
           customerVariant={customer.customerVariant}
-          mood={mood}
+          mood={shownMood}
         />
 
         <OrderBubble
@@ -133,8 +190,10 @@ function GameScreen() {
           servedItems={servedNow}
           traceScore={order.traceScore}
           orderNumber={orderNumber}
+          patience={patience}
+          secondsLeft={secondsLeft}
         />
-        
+
         <ServeButton
           onClick={handleServe}
           disabled={isSubmitting || !order.cupCode}
@@ -177,11 +236,13 @@ function GameScreen() {
             <div style={{ marginTop: 6 }}>
               <div>
                 Server: {lastServe.server.satisfied ? 'SATISFIED' : 'DISSATISFIED'} | points{' '}
-                {lastServe.server.pointsEarned}
+                {lastServe.server.pointsEarned} | patience {lastServe.server.patienceRemaining}
               </div>
               <div>
                 Needed {lastServe.server.requiredAccuracy}% | got {lastServe.server.combinedAccuracy}%
-                {' '}(local estimate {lastServe.localCombined}%)
+                {lastServe.localCombined !== null && (
+                  <> (local estimate {lastServe.localCombined}%)</>
+                )}
               </div>
               <div>Mistakes: {lastServe.server.mistakeCount}</div>
             </div>

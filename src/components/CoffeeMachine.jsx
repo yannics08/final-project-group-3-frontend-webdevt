@@ -103,11 +103,17 @@ function CoffeeMachine({selectedCup, onIngredientClick }) {
   }, [dispenseEvent]);
 
   const handlePress = (ingredient) => {
-    if (ingredient !== "latte-design") {
-      setDispenseEvent({ id: Date.now(), ingredient, cupType: selectedCup });
-    }
+    if (!selectedCup) return;
+
+    // Ask the game screen first. It answers false if the press was ignored.
+    let accepted = true;
     if (onIngredientClick) {
-      onIngredientClick(ingredient);
+      accepted = onIngredientClick(ingredient) !== false;
+    }
+
+    // Only play the dispense animation for presses that counted.
+    if (accepted && ingredient !== "latte-design") {
+      setDispenseEvent({ id: Date.now(), ingredient, cupType: selectedCup });
     }
   };
 

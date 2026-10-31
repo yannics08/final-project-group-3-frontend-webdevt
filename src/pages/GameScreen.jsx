@@ -1,10 +1,12 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useOrder } from '../hooks/useOrder';
 import { usePatience } from '../hooks/usePatience';
+import { useGameClock } from '../hooks/useGameClock';
 import {
   evaluateOrderLocally,
   submitOrder,
+  finishSession,
   buildOrderPayload,
   pickNextCustomer,
   clearSavedLogin,
@@ -17,6 +19,7 @@ import LatteDesign from '../components/LatteDesign';
 import Customer from '../components/Customer';
 import OrderBubble from '../components/OrderBubble';
 import ServeButton from '../components/ServeButton';
+import GameHud from '../components/GameHud';
 import pauseSvg from '../assets/pause.svg';
 import { useGame } from '../context/GameContext';
 import './GameScreen.css';
@@ -36,12 +39,15 @@ function wait(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
-function GameScreen() {
-  const { sessionId, config, recipes, reloadRecipes, clearGame } = useGame();
+function GamePlay({ onRestartRun }) {
+  const { sessionId, config, recipes, startGame, reloadRecipes, clearGame } = useGame();
   const order = useOrder(config);
   const [isPaused, setIsPaused] = useState(false);
   const [isLatteOpen, setIsLatteOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false); // sending one customer's order
+  const [isFinishing, setIsFinishing] = useState(false); // finishing, leaving or restarting
+  const [finishResult, setFinishResult] = useState(null);
+  const [finishError, setFinishError] = useState('');
   const [lastServe, setLastServe] = useState(null);
   const [sessionStats, setSessionStats] = useState(null);
   const [serveMessage, setServeMessage] = useState('');
@@ -50,26 +56,49 @@ function GameScreen() {
   const [customer, setCustomer] = useState(() => pickNextCustomer(0, config, recipes));
   const [mood, setMood] = useState('default');
   const [orderNumber, setOrderNumber] = useState(1);
-  const gameStartRef = useRef(Date.now());
 
-  // The patience timer stops while paused or while a result is being handled.
-  const { patience, secondsLeft, resetPatience } = usePatience(
+  // The game clock (180 seconds, frozen while paused).
+  const totalSeconds = config?.sessionLengthSeconds ?? 180;
+  const maxPauseSeconds = config?.maxPauseSeconds ?? 120;
+  const { playedSeconds, pausedSeconds, secondsLeft, isOver } = useGameClock(
+    totalSeconds,
+    isPaused
+  );
+
+  // The patience timer stops while paused, busy, or once the game is over.
+  const { patience, secondsLeft: patienceSecondsLeft, resetPatience } = usePatience(
     customer.customerType,
-    !isPaused && !isSubmitting
+    !isPaused && !isSubmitting && !isFinishing && !isOver
   );
 
   // When patience reaches 0, the customer leaves.
   useEffect(() => {
-    if (patience <= 0) {
+    if (patience <= 0 && !isOver) {
       handleCustomerLeft();
     }
     // The effect should only run when patience changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patience]);
 
+  // When the pause time is used up, the game resumes by itself.
+  useEffect(() => {
+    if (isPaused && pausedSeconds >= maxPauseSeconds) {
+      setIsPaused(false);
+    }
+  }, [isPaused, pausedSeconds, maxPauseSeconds]);
+
+  // When the clock reaches 0, finish the game (after any order that is being sent).
+  useEffect(() => {
+    if (isOver && !isSubmitting && !isFinishing && finishResult === null && finishError === '') {
+      finishGame();
+    }
+    // Only react to these two values changing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOver, isSubmitting]);
+
   const handleIngredientClick = (buttonName) => {
-    // Nothing works while a result is being shown.
-    if (isSubmitting) return false;
+    // Nothing works while paused, busy, or after the game is over.
+    if (isPaused || isSubmitting || isFinishing || isOver) return false;
 
     if (buttonName === 'latte-design') {
       // Only for customers who asked for a design, and one attempt per drink.
@@ -103,10 +132,15 @@ function GameScreen() {
   // An angry face when patience is low (unless a result is being shown).
   const shownMood = mood === 'default' && patience <= LOW_PATIENCE ? 'mad' : mood;
 
-  // Brings in the next customer.
+  // The pause total, as a whole number, never above the allowed maximum.
+  function getPausedTotal() {
+    return Math.min(Math.round(pausedSeconds), maxPauseSeconds);
+  }
+
+  // Brings in the next customer. (playedSeconds can be up to ~2 seconds old here,
+  // which does not matter for the spawn weights.)
   function startNextCustomer(recipeList) {
-    const secondsPlayed = (Date.now() - gameStartRef.current) / 1000;
-    setCustomer(pickNextCustomer(secondsPlayed, config, recipeList));
+    setCustomer(pickNextCustomer(playedSeconds, config, recipeList));
     setMood('default');
     setOrderNumber((previous) => previous + 1);
     resetPatience();
@@ -115,7 +149,7 @@ function GameScreen() {
   // Sends one customer's order to the server. Used for serving AND for leaving.
   async function finishCustomer(servedItems, traceScore, patienceValue, isLeaving) {
     // Never send two requests at once (rule 10 of the API).
-    if (isSubmitting) return;
+    if (isSubmitting || isFinishing || isOver) return;
 
     setIsSubmitting(true);
     setServeMessage('');
@@ -175,9 +209,87 @@ function GameScreen() {
     finishCustomer(EMPTY_DRINK, null, 0, true);
   }
 
+  // The clock reached 0: end the game on the server and get the results.
+  async function finishGame() {
+    // Never send the same finish request twice (rule 10 of the API).
+    if (isFinishing) return;
+
+    setIsFinishing(true);
+    setFinishError('');
+    try {
+      let data;
+      try {
+        data = await finishSession(sessionId, 'completed', getPausedTotal());
+      } catch (error) {
+        // If "completed" is refused for timing (400), the API says to send "quit".
+        if (error.status === 400) {
+          data = await finishSession(sessionId, 'quit', getPausedTotal());
+        } else {
+          throw error;
+        }
+      }
+      setFinishResult(data.result);
+    } catch (error) {
+      if (error.status === 401 || error.status === 403) {
+        clearSavedLogin();
+        clearGame();
+      } else {
+        setFinishError(error.message);
+      }
+    } finally {
+      setIsFinishing(false);
+    }
+  }
+
+  // The player opened the pause menu.
+  function handlePause() {
+    if (isOver || isFinishing) return;
+    // All 120 seconds of pause time are used up.
+    if (pausedSeconds >= maxPauseSeconds) return;
+    setIsPaused(true);
+  }
+
+  // Restart: the server closes the old session by itself when a new one starts.
+  async function handleRestart() {
+    if (isFinishing) return;
+
+    setIsFinishing(true);
+    try {
+      await startGame();
+      onRestartRun(); // remounts this whole component with fresh state
+    } catch (error) {
+      if (error.status === 401 || error.status === 403) {
+        clearSavedLogin();
+        clearGame();
+      } else {
+        setServeMessage(error.message);
+      }
+      setIsFinishing(false);
+    }
+  }
+
+  // The player confirmed leaving through the pause menu.
+  async function handleLeave() {
+    if (isFinishing) return;
+
+    setIsFinishing(true);
+    try {
+      await finishSession(sessionId, 'quit', getPausedTotal());
+    } catch (error) {
+      // The player wants to leave anyway, so we do not stop here.
+      console.log('Could not save the quit request:', error);
+    }
+    clearGame(); // no session left, so the guard sends the player home
+  }
+
   return (
     <div className="gameplay-container">
       <main className="gameplay-screen" aria-label="Mad Coffee Gameplay Screen">
+        <GameHud
+          secondsLeft={secondsLeft}
+          score={sessionStats ? sessionStats.runningScore : 0}
+        />
+
         <Customer
           key={customer.id}
           customerType={customer.customerType}
@@ -191,15 +303,15 @@ function GameScreen() {
           traceScore={order.traceScore}
           orderNumber={orderNumber}
           patience={patience}
-          secondsLeft={secondsLeft}
+          secondsLeft={patienceSecondsLeft}
         />
 
         <ServeButton
           onClick={handleServe}
-          disabled={isSubmitting || !order.cupCode}
+          disabled={isSubmitting || isFinishing || isOver || !order.cupCode}
         />
 
-        {/* TEMPORARY test panel, moved to the bottom-left corner. */}
+        {/* TEMPORARY test panel. Delete it when you no longer need it. */}
         <div
           style={{
             position: 'absolute',
@@ -214,6 +326,9 @@ function GameScreen() {
             maxWidth: 360,
           }}
         >
+          <div>
+            Clock: played {Math.round(playedSeconds)}s | paused {Math.round(pausedSeconds)}s
+          </div>
           <div>
             Customer: {customer.customerType} {customer.customerVariant} | trace:{' '}
             {customer.traceRequired ? customer.traceDesign : 'none'}
@@ -259,7 +374,7 @@ function GameScreen() {
         <button
           type="button"
           className="gameplay-pause-btn"
-          onClick={() => setIsPaused(true)}
+          onClick={handlePause}
           aria-label="Pause Game"
           title="Pause"
         >
@@ -273,24 +388,48 @@ function GameScreen() {
         <ActiveCup cupType={order.cupCode} />
         <CupShelf onSelectCup={order.chooseCup} />
 
-        <GamePaused
-          isOpen={isPaused}
-          onContinue={() => setIsPaused(false)}
-          onRestart={() => {
-            order.resetOrder();
-          }}
-        />
-
-        {isLatteOpen && (
+        {isLatteOpen && !isOver && (
           <LatteDesign
             isOpen={true}
             lockedDesign={customer.traceDesign}
             onDone={handleLatteDone}
             onCancel={() => setIsLatteOpen(false)}
+            onPause={handlePause}
+          />
+        )}
+
+        {/* The only pause menu. It sits above the latte design screen too. */}
+        <GamePaused
+          isOpen={isPaused}
+          onContinue={() => setIsPaused(false)}
+          onRestart={handleRestart}
+          onLeave={handleLeave}
+        />
+
+        {isOver && (
+          <ResultsScreen
+            result={finishResult}
+            errorMessage={finishError}
+            isBusy={isFinishing}
+            onRetry={finishGame}
+            onHome={clearGame}
           />
         )}
       </main>
     </div>
+  );
+}
+
+// The page itself. Changing the "key" throws away GamePlay and builds a brand-new
+// one, which resets every piece of state, timer and customer in one step.
+function GameScreen() {
+  const [runNumber, setRunNumber] = useState(0);
+
+  return (
+    <GamePlay
+      key={runNumber}
+      onRestartRun={() => setRunNumber((previous) => previous + 1)}
+    />
   );
 }
 

@@ -396,7 +396,7 @@ function buildPolylinePoints(stroke) {
   return stroke.map((pt) => `${pt.x.toFixed(1)},${pt.y.toFixed(1)}`).join(' ');
 }
 
-function LatteDesign({ isOpen = true, onDone, onServe, onCancel, initialDesignIndex = 0, lockedDesign = null }) {
+function LatteDesign({ isOpen = true, onDone, onServe, onCancel, initialDesignIndex = 0, lockedDesign = null, onPause = null }) {
   const navigate = useNavigate();
   const location = useLocation();
   const isStandaloneScreen = location.pathname === '/latte-design' && !onDone && !onServe && !onCancel;
@@ -712,6 +712,7 @@ function LatteDesign({ isOpen = true, onDone, onServe, onCancel, initialDesignIn
         </div>
       </div>
 
+    {!onPause && (
       <GamePaused
         isOpen={isPaused}
         onContinue={() => setIsPaused(false)}
@@ -724,6 +725,7 @@ function LatteDesign({ isOpen = true, onDone, onServe, onCancel, initialDesignIn
           }
         }}
       />
+    )}
     </main>
   );
   return (

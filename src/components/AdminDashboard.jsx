@@ -4,6 +4,8 @@ import closeButtonSvg from '../assets/close button.svg';
 import searchButtonSvg from '../assets/search button.svg';
 import resetNameButtonSvg from '../assets/reset name button.svg';
 import deleteButtonSvg from '../assets/delete button.svg';
+import { getAdminUsers } from '../services/api';
+import { useDebounce } from '../hooks/useDebounce';
 
 const USERS_STORAGE_KEY = 'madcoffee_users';
 
@@ -245,6 +247,15 @@ const adminDashboardStyles = `
   margin-top: 2px;
 }
 
+.admin-player-status {
+  font-family: 'Nunito', 'Fredoka', sans-serif;
+  font-weight: 800;
+  font-size: clamp(11px, 0.95vw, 13px);
+  color: #B93829;
+  line-height: 1.2;
+  margin-top: 2px;
+}
+
 .admin-player-points,
 .admin-player-rank {
   font-family: 'Nunito', 'Fredoka', sans-serif;
@@ -444,16 +455,6 @@ const adminDashboardStyles = `
 }
 `;
 
-function loadStoredUsers() {
-  try {
-    const raw = localStorage.getItem(USERS_STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return parsed.filter((u) => u.username?.toLowerCase() !== 'admin' && !u.deleted);
-  } catch {
-    return [];
-  }
-}
-
 function loadAllUsers() {
   try {
     const raw = localStorage.getItem(USERS_STORAGE_KEY);
@@ -476,9 +477,14 @@ function generateDefaultPlayerName(existingUsers) {
 }
 
 function AdminDashboard({ onClose }) {
-  const [users, setUsers] = useState(() => loadStoredUsers());
+  const [users, setUsers] = useState([]);
+  const [total, setTotal] = useState(0);
   const [searchInput, setSearchInput] = useState('');
-  const [appliedQuery, setAppliedQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  // Only changes 500 ms after the admin stops typing.
+  const debouncedSearch = useDebounce(searchInput.trim(), 500);
   const [resetTarget, setResetTarget] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
@@ -498,27 +504,37 @@ function AdminDashboard({ onClose }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [resetTarget, deleteTarget, onClose]);
 
-  const rankedUsers = [...users]
-    .sort((a, b) => (b.points ?? 0) - (a.points ?? 0))
-    .map((user, index) => ({
-      ...user,
-      rank: index + 1,
-    }));
+  useEffect(() => {
+    // If the admin types again before this request finishes,
+    // the cleanup below sets this to true so the old answer is ignored.
+    let isCancelled = false;
 
-  const activeQuery = (appliedQuery || searchInput).trim().toLowerCase();
-  const filteredUsers = activeQuery
-    ? rankedUsers.filter(
-        (u) =>
-          u.username.toLowerCase().includes(activeQuery) ||
-          (u.email && u.email.toLowerCase().includes(activeQuery))
-      )
-    : rankedUsers;
+    async function loadUsers() {
+      try {
+        const data = await getAdminUsers(debouncedSearch, 200);
+        if (isCancelled) return;
+        setUsers(data.users);
+        setTotal(data.total);
+        setErrorMessage('');
+      } catch (error) {
+        if (isCancelled) return;
+        setErrorMessage(error.message);
+      } finally {
+        if (!isCancelled) setIsLoading(false);
+      }
+    }
+
+    loadUsers();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [debouncedSearch]);
 
   const handleSearchSubmit = (e) => {
-    e.preventDefault();
-    setAppliedQuery(searchInput);
+    e.preventDefault(); // the debounce already handles searching
   };
-
+  
   const handleOpenResetModal = (player) => {
     if (player.nameResetPending) return;
     const defaultName = generateDefaultPlayerName(loadAllUsers());
@@ -574,87 +590,88 @@ function AdminDashboard({ onClose }) {
             <img src={closeButtonSvg} alt="Close" draggable="false" />
           </button>
 
-          <div className="admin-board-inner">
-            <h2 className="admin-board-title">ADMIN DASHBOARD</h2>
+          <div className="admin-toolbar-row">
+            <form className="admin-search-box" onSubmit={handleSearchSubmit}>
+              <input
+                type="text"
+                className="admin-search-input"
+                placeholder="Search by name"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                aria-label="Search by name"
+              />
+              <button
+                type="submit"
+                className="admin-search-submit-btn"
+                aria-label="Search"
+                title="Search"
+              >
+                <img src={searchButtonSvg} alt="Search" draggable="false" />
+              </button>
+            </form>
 
-            <div className="admin-toolbar-row">
-              <form className="admin-search-box" onSubmit={handleSearchSubmit}>
-                <input
-                  type="text"
-                  className="admin-search-input"
-                  placeholder="Search by username or email"
-                  value={searchInput}
-                  onChange={(e) => {
-                    setSearchInput(e.target.value);
-                    setAppliedQuery(e.target.value);
-                  }}
-                  aria-label="Search by username or email"
-                />
-                <button
-                  type="submit"
-                  className="admin-search-submit-btn"
-                  aria-label="Search"
-                  title="Search"
-                >
-                  <img src={searchButtonSvg} alt="Search" draggable="false" />
-                </button>
-              </form>
+            <span className="admin-players-count">
+              {total} {total === 1 ? 'player' : 'players'}
+            </span>
+          </div>
 
-              <span className="admin-players-count">
-                {filteredUsers.length} {filteredUsers.length === 1 ? 'player' : 'players'}
-              </span>
-            </div>
+          <div className="admin-table-header">
+            <span className="admin-col-player">PLAYER</span>
+            <span className="admin-col-points">POINTS</span>
+            <span className="admin-col-rank">RANK</span>
+            <span className="admin-col-actions">ACTIONS</span>
+          </div>
 
-            <div className="admin-table-header">
-              <span className="admin-col-player">PLAYER</span>
-              <span className="admin-col-points">POINTS</span>
-              <span className="admin-col-rank">RANK</span>
-              <span className="admin-col-actions">ACTIONS</span>
-            </div>
+          <div className="admin-table-body">
+            {isLoading && <div className="admin-empty-state">Loading players...</div>}
 
-            <div className="admin-table-body">
-              {filteredUsers.length > 0 ? (
-                filteredUsers.map((player) => (
-                  <div key={player.username} className="admin-table-row">
-                    <div className="admin-player-info">
-                      <span className="admin-player-username">{player.username}</span>
-                      {player.email && (
-                        <span className="admin-player-email">{player.email}</span>
-                      )}
-                    </div>
+            {!isLoading && errorMessage && (
+              <div className="admin-empty-state" role="alert">{errorMessage}</div>
+            )}
 
-                    <span className="admin-player-points">{player.points ?? 0}</span>
+            {!isLoading && !errorMessage && users.length === 0 && (
+              <div className="admin-empty-state">No players found.</div>
+            )}
 
-                    <span className="admin-player-rank">#{player.rank}</span>
+            {!isLoading && !errorMessage && users.map((player) => (
+              <div key={player.id} className="admin-table-row">
+                <div className="admin-player-info">
+                  <span className="admin-player-username">{player.displayName}</span>
+                  {player.isBanned && (
+                    <span className="admin-player-status">Banned</span>
+                  )}
+                </div>
 
-                    <div className="admin-row-actions">
-                      <button
-                        type="button"
-                        className="admin-action-svg-btn is-reset"
-                        disabled={Boolean(player.nameResetPending)}
-                        onClick={() => handleOpenResetModal(player)}
-                        aria-label={`Reset name for ${player.username}`}
-                        title="Reset Name"
-                      >
-                        <img src={resetNameButtonSvg} alt="Reset Name" draggable="false" />
-                      </button>
+                <span className="admin-player-points">{player.highScore}</span>
 
-                      <button
-                        type="button"
-                        className="admin-action-svg-btn is-delete"
-                        onClick={() => setDeleteTarget(player)}
-                        aria-label={`Delete ${player.username}`}
-                        title="Delete"
-                      >
-                        <img src={deleteButtonSvg} alt="Delete" draggable="false" />
-                      </button>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="admin-empty-state">No players found.</div>
-              )}
-            </div>
+                <span className="admin-player-rank">
+                  {player.rank !== null ? '#' + player.rank : '—'}
+                </span>
+
+                <div className="admin-row-actions">
+                  <button
+                    type="button"
+                    className="admin-action-svg-btn is-reset"
+                    disabled={Boolean(player.nameResetPending)}
+                    onClick={() => handleOpenResetModal(player)}
+                    aria-label={`Reset name for ${player.displayName}`}
+                    title="Reset Name"
+                  >
+                    <img src={resetNameButtonSvg} alt="Reset Name" draggable="false" />
+                  </button>
+
+                  <button
+                    type="button"
+                    className="admin-action-svg-btn is-delete"
+                    onClick={() => setDeleteTarget(player)}
+                    aria-label={`Delete ${player.displayName}`}
+                    title="Delete"
+                  >
+                    <img src={deleteButtonSvg} alt="Delete" draggable="false" />
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 

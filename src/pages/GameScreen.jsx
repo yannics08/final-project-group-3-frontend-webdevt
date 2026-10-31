@@ -20,9 +20,11 @@ import Customer from '../components/Customer';
 import OrderBubble from '../components/OrderBubble';
 import ServeButton from '../components/ServeButton';
 import GameHud from '../components/GameHud';
+import ResultsScreen from '../components/ResultsScreen';
 import pauseSvg from '../assets/pause.svg';
 import { useGame } from '../context/GameContext';
 import './GameScreen.css';
+
 
 const USERS_STORAGE_KEY = 'madcoffee_users';
 const CURRENT_USER_STORAGE_KEY = 'madcoffee_current_user';
@@ -396,6 +398,7 @@ function GamePlay({ onRestartRun }) {
             errorMessage={finishError}
             isBusy={isFinishing}
             onRetry={finishGame}
+            onPlayAgain={handleRestart}
             onHome={clearGame}
           />
         )}

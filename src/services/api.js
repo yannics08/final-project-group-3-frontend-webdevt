@@ -400,3 +400,9 @@ export function unbanUser(userId) {
 export function deleteUser(userId) {
   return callApi('/api/admin/users/' + userId, 'DELETE');
 }
+
+// ----- Leaderboard -----
+
+export function getLeaderboard(limit) {
+  return callApi('/api/leaderboard?limit=' + limit);
+}

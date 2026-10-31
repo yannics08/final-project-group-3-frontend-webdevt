@@ -1,8 +1,7 @@
-import { useEffect } from 'react';
-import adminBgSvg from '../assets/admin (bg).svg';
-import closeButtonSvg from '../assets/close button.svg';
-
-const USERS_STORAGE_KEY = 'madcoffee_users';
+import { useEffect } from "react";
+import adminBgSvg from "../assets/admin (bg).svg";
+import closeButtonSvg from "../assets/close button.svg";
+import { useLeaderboard } from "../hooks/useLeaderboard";
 
 const leaderboardStyles = `
 @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700;800&family=Lilita+One&family=Nunito:wght@600;700;800;900&display=swap');
@@ -189,37 +188,52 @@ const leaderboardStyles = `
   font-size: 16px;
   color: #7A5A40;
 }
-`;
 
-function loadSortedLeaderboardUsers() {
-  try {
-    const raw = localStorage.getItem(USERS_STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return parsed
-      .filter((u) => u.username?.toLowerCase() !== 'admin' && !u.deleted)
-      .sort((a, b) => (b.points ?? 0) - (a.points ?? 0));
-  } catch {
-    return [];
-  }
+.leaderboard-error-state {
+  flex-direction: column;
+  gap: 14px;
+  text-align: center;
+  color: #B93829;
 }
 
+.leaderboard-retry-btn {
+  height: 38px;
+  padding: 0 22px;
+  background: #B97C49;
+  border: 2px solid #361E10;
+  border-radius: 10px;
+  font-family: 'Nunito', 'Fredoka', sans-serif;
+  font-weight: 800;
+  font-size: 15px;
+  color: #FFF4DF;
+  cursor: pointer;
+  outline: none;
+}
+  
+`;
+
 function Leaderboard({ onClose }) {
-  const players = loadSortedLeaderboardUsers();
+  const { players, isLoading, errorMessage, reload } = useLeaderboard(100);
 
   useEffect(() => {
     function handleKeyDown(e) {
-      if (e.key === 'Escape' && onClose) {
+      if (e.key === "Escape" && onClose) {
         onClose();
       }
     }
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
 
   return (
     <>
       <style>{leaderboardStyles}</style>
-      <div className="leaderboard-screen-overlay" role="dialog" aria-modal="true" aria-label="Leaderboard">
+      <div
+        className="leaderboard-screen-overlay"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Leaderboard"
+      >
         <div className="leaderboard-board-frame">
           <button
             type="button"
@@ -235,34 +249,60 @@ function Leaderboard({ onClose }) {
             <h2 className="leaderboard-title">LEADERBOARD</h2>
 
             <div className="leaderboard-list">
-              {players.length > 0 ? (
+              {isLoading && (
+                <div className="leaderboard-empty-state">Loading...</div>
+              )}
+
+              {!isLoading && errorMessage && (
+                <div
+                  className="leaderboard-empty-state leaderboard-error-state"
+                  role="alert"
+                >
+                  <span>{errorMessage}</span>
+                  <button
+                    type="button"
+                    className="leaderboard-retry-btn"
+                    onClick={reload}
+                  >
+                    Try again
+                  </button>
+                </div>
+              )}
+
+              {!isLoading && !errorMessage && players.length === 0 && (
+                <div className="leaderboard-empty-state">No scores yet</div>
+              )}
+
+              {!isLoading &&
+                !errorMessage &&
                 players.map((player, idx) => {
                   const rank = idx + 1;
                   const rankClass =
                     rank === 1
-                      ? 'rank-1'
+                      ? "rank-1"
                       : rank === 2
-                      ? 'rank-2'
-                      : rank === 3
-                      ? 'rank-3'
-                      : 'rank-other';
+                        ? "rank-2"
+                        : rank === 3
+                          ? "rank-3"
+                          : "rank-other";
 
                   return (
-                    <div key={player.username} className="leaderboard-row">
+                    <div key={player.displayName} className="leaderboard-row">
                       <div className="leaderboard-user-side">
                         <span className={`leaderboard-rank-badge ${rankClass}`}>
                           {rank}
                         </span>
-                        <span className="leaderboard-username">{player.username}</span>
+                        <span className="leaderboard-username">
+                          {player.displayName}
+                        </span>
                       </div>
 
-                      <span className="leaderboard-points">{player.points ?? 0}</span>
+                      <span className="leaderboard-points">
+                        {player.highScore}
+                      </span>
                     </div>
                   );
-                })
-              ) : (
-                <div className="leaderboard-empty-state">No players yet.</div>
-              )}
+                })}
             </div>
           </div>
         </div>
@@ -272,4 +312,3 @@ function Leaderboard({ onClose }) {
 }
 
 export default Leaderboard;
-

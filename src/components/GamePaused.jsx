@@ -289,7 +289,7 @@ const gamePausedStyles = `
 }
 `;
 
-function GamePaused({ isOpen, onContinue, onRestart }) {
+function GamePaused({ isOpen, onContinue, onRestart, onLeave }) {
   const navigate = useNavigate();
   const [volume, setVolume] = useState(() => {
     const saved = localStorage.getItem(VOLUME_STORAGE_KEY);
@@ -350,6 +350,14 @@ function GamePaused({ isOpen, onContinue, onRestart }) {
       onContinue();
     }
   };
+
+  const handleLeave = () => {
+  if (onLeave) {
+    onLeave();
+  } else {
+    navigate('/');
+  }
+};
 
   return (
     <>
@@ -489,7 +497,7 @@ function GamePaused({ isOpen, onContinue, onRestart }) {
                 <button
                   type="button"
                   className="pause-confirm-btn is-yes"
-                  onClick={() => navigate('/')}
+                  onClick={handleLeave}
                 >
                   YES
                 </button>

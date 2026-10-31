@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import closeButtonSvg from '../assets/close button.svg';
 import showPasswordSvg from '../assets/show password.svg';
 import hidePasswordSvg from '../assets/hide password.svg';
+import { callApi, saveLogin } from '../services/api';
 
 const USERS_STORAGE_KEY = 'madcoffee_users';
-const CURRENT_USER_STORAGE_KEY = 'madcoffee_current_user';
 
 const authModalStyles = `
 @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700;800&family=Lilita+One&family=Nunito:wght@600;700;800&display=swap');
@@ -272,21 +272,19 @@ const authModalStyles = `
 }
 `;
 
-function getStoredUsers() {
+function readLocalAccount(name) {
   try {
     const raw = localStorage.getItem(USERS_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    const users = raw ? JSON.parse(raw) : [];
+    const n = name.toLowerCase();
+    return (
+      users.find((u) => u.username?.toLowerCase() === n) ||
+      users.find((u) => u.resetFrom?.toLowerCase() === n) ||
+      null
+    );
   } catch {
-    return [];
+    return null;
   }
-}
-
-function saveStoredUsers(users) {
-  localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
-}
-
-function saveCurrentUser(user) {
-  localStorage.setItem(CURRENT_USER_STORAGE_KEY, JSON.stringify(user));
 }
 
 function AuthModal({ mode = 'login', onClose, onSwitchMode, onSuccess, onAccountDeleted }) {
@@ -297,6 +295,7 @@ function AuthModal({ mode = 'login', onClose, onSwitchMode, onSuccess, onAccount
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const currentMode = internalMode;
   const isLogin = currentMode === 'login';
@@ -311,7 +310,7 @@ function AuthModal({ mode = 'login', onClose, onSwitchMode, onSuccess, onAccount
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage('');
 
@@ -321,39 +320,41 @@ function AuthModal({ mode = 'login', onClose, onSwitchMode, onSuccess, onAccount
       return;
     }
 
-    const users = getStoredUsers();
-
-    if (isLogin) {
-      if (trimmedUsername.toLowerCase() === 'admin' && password === 'yesadmin123!') {
-        const adminSession = {
-          username: 'admin',
-          isAdmin: true,
-        };
-        saveCurrentUser(adminSession);
-        if (onSuccess) {
-          onSuccess(adminSession);
-        }
-        onClose();
+    // These extra checks only apply when signing up.
+    if (!isLogin) {
+      // Letters, numbers and underscores only, 3 to 20 characters long.
+      const usernameIsValid = /^[A-Za-z0-9_]{3,20}$/.test(trimmedUsername);
+      if (!usernameIsValid) {
+        setErrorMessage('Username must be 3 to 20 characters: letters, numbers and underscores only.');
         return;
       }
 
-      const matchedUser =
-        users.find(
-          (u) => u.username.toLowerCase() === trimmedUsername.toLowerCase() && u.password === password
-        ) ||
-        users.find(
-          (u) =>
-            (u.nameResetPending || u.deleted) &&
-            u.resetFrom?.toLowerCase() === trimmedUsername.toLowerCase() &&
-            u.password === password
-        );
+      const hasMinLength = password.length >= 8;
+      const hasNumber = /\d/.test(password);
+      const hasSpecialChar = /[^A-Za-z0-9]/.test(password);
 
-      if (!matchedUser) {
-        setErrorMessage('Invalid username or password.');
+      if (!hasMinLength || !hasNumber || !hasSpecialChar) {
+        setErrorMessage('Password must be at least 8 characters with a number and special character.');
         return;
       }
 
-      if (matchedUser.deleted) {
+      if (password !== confirmPassword) {
+        setErrorMessage('Passwords do not match.');
+        return;
+      }
+    }
+
+    setIsSubmitting(true);
+    try {
+      const path = isLogin ? '/api/auth/login' : '/api/auth/register';
+      const data = await callApi(path, 'POST', {
+        username: trimmedUsername,
+        password: password,
+      });
+
+      // Account notices (deleted / name reset) are flagged locally by the admin tools.
+      const localAccount = isLogin ? readLocalAccount(trimmedUsername) : null;
+      if (localAccount?.deleted) {
         if (onAccountDeleted) {
           onAccountDeleted();
         }
@@ -361,67 +362,20 @@ function AuthModal({ mode = 'login', onClose, onSwitchMode, onSuccess, onAccount
         return;
       }
 
-      if (
-        matchedUser.resetFrom &&
-        matchedUser.resetFrom.toLowerCase() === trimmedUsername.toLowerCase() &&
-        matchedUser.username.toLowerCase() !== trimmedUsername.toLowerCase()
-      ) {
-        saveStoredUsers(
-          users.map((u) => (u === matchedUser ? { ...u, resetFrom: undefined } : u))
-        );
-      }
-
       const sessionUser = {
-        username: matchedUser.username,
-        points: matchedUser.points ?? 0,
-        day: matchedUser.day ?? 0,
-        nameResetPending: Boolean(matchedUser.nameResetPending),
+        ...data.user,
+        nameResetPending: Boolean(localAccount?.nameResetPending),
       };
-      saveCurrentUser(sessionUser);
-
+      saveLogin(data.token, sessionUser);
       if (onSuccess) {
         onSuccess(sessionUser);
       }
       onClose();
-      return;
+    } catch (error) {
+      setErrorMessage(error.message);
+    } finally {
+      setIsSubmitting(false);
     }
-
-    const usernameExists =
-      trimmedUsername.toLowerCase() === 'admin' ||
-      users.some(
-        (u) =>
-          u.username.toLowerCase() === trimmedUsername.toLowerCase() ||
-          (u.nameResetPending && u.resetFrom?.toLowerCase() === trimmedUsername.toLowerCase())
-      );
-    if (usernameExists) {
-      setErrorMessage('Username is already taken.');
-      return;
-    }
-
-    const hasMinLength = password.length >= 8;
-    const hasNumber = /\d/.test(password);
-    const hasSpecialChar = /[^A-Za-z0-9]/.test(password);
-
-    if (!hasMinLength || !hasNumber || !hasSpecialChar) {
-      setErrorMessage('Password must be at least 8 characters with a number and special character.');
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setErrorMessage('Passwords do not match.');
-      return;
-    }
-
-    const updatedUsers = [...users, { username: trimmedUsername, password, points: 0, day: 0 }];
-    saveStoredUsers(updatedUsers);
-
-    const sessionUser = { username: trimmedUsername, points: 0, day: 0 };
-    saveCurrentUser(sessionUser);
-
-    if (onSuccess) {
-      onSuccess(sessionUser);
-    }
-    onClose();
   };
 
   const handleSwitch = (newMode) => {
@@ -518,8 +472,8 @@ function AuthModal({ mode = 'login', onClose, onSwitchMode, onSuccess, onAccount
                   </div>
                 )}
 
-                <button type="submit" className="cafe-modal-btn">
-                  Log in
+                <button type="submit" className="cafe-modal-btn" disabled={isSubmitting}>
+                  {isSubmitting ? 'Please wait...' : 'Log in'}
                 </button>
 
                 <div className="cafe-modal-footer">
@@ -623,8 +577,8 @@ function AuthModal({ mode = 'login', onClose, onSwitchMode, onSuccess, onAccount
                   </div>
                 )}
 
-                <button type="submit" className="cafe-modal-btn">
-                  Sign up
+                <button type="submit" className="cafe-modal-btn" disabled={isSubmitting}>
+                  {isSubmitting ? 'Please wait...' : 'Sign up'}
                 </button>
 
                 <div className="cafe-modal-footer">

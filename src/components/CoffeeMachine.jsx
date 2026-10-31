@@ -91,7 +91,7 @@ const BUTTONS = [
   { ingredient: "latte-design", label: "Latte Design", left: 338, top: 116, iconSrc: latteDesignButtonSvg },
 ];
 
-function CoffeeMachine({ selectedCup, onIngredientClick }) {
+function CoffeeMachine({selectedCup, onIngredientClick }) {
   const [dispenseEvent, setDispenseEvent] = useState(null);
 
   useEffect(() => {
@@ -104,11 +104,16 @@ function CoffeeMachine({ selectedCup, onIngredientClick }) {
 
   const handlePress = (ingredient) => {
     if (!selectedCup) return;
-    if (ingredient !== "latte-design") {
-      setDispenseEvent({ id: Date.now(), ingredient, cupType: selectedCup });
-    }
+
+    // Ask the game screen first. It answers false if the press was ignored.
+    let accepted = true;
     if (onIngredientClick) {
-      onIngredientClick(ingredient);
+      accepted = onIngredientClick(ingredient) !== false;
+    }
+
+    // Only play the dispense animation for presses that counted.
+    if (accepted && ingredient !== "latte-design") {
+      setDispenseEvent({ id: Date.now(), ingredient, cupType: selectedCup });
     }
   };
 

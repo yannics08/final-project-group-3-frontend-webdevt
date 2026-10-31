@@ -21,7 +21,6 @@ const settingsStyles = `
   position: absolute;
   width: calc(96 / 1440 * 100%);
   max-width: 96px;
-  min-width: 52px;
   right: calc(21 / 1440 * 100%);
   top: 0px;
   z-index: 30;
@@ -58,7 +57,6 @@ const settingsStyles = `
   position: absolute;
   width: calc(96 / 1440 * 100%);
   max-width: 96px;
-  min-width: 52px;
   right: calc(21 / 1440 * 100%);
   top: 0px;
   z-index: 30;
@@ -82,7 +80,6 @@ const settingsStyles = `
 .ribbon-menu-wrapper.is-expanded {
   width: calc(108 / 1440 * 100%);
   max-width: 108px;
-  min-width: 60px;
   aspect-ratio: 126 / 380;
   animation: ribbonUnroll 0.22s cubic-bezier(0.34, 1.25, 0.64, 1);
 }
